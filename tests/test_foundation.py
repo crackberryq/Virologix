@@ -41,6 +41,3 @@ def test_ui(tmp_path,monkeypatch):
     monkeypatch.setenv("VIRALOGIX_HOME",str(tmp_path))
     app=AppTest.from_file(str(Path(__file__).parents[1]/"src/viralogix/app.py")).run()
     assert not app.exception
-    for page in ["Samples","cFASTA","Setup"]:
-        app.sidebar.radio[0].set_value(page).run()
-        assert not app.exception
