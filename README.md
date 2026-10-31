@@ -1,12 +1,12 @@
-# Viralogix
+# Virologix
 
 Local virology platform, derived from Jimi Goldstein's MIT-licensed Bactologix.
-Version 0.1.0a3 is a foundation, not a sequencing analysis release.
+Version 0.1.0a4 is a foundation, not a sequencing analysis release.
 
 ## Install on Windows
 
-Download [Viralogix-Windows.zip](https://github.com/crackberryq/Virologix/releases/download/v0.1.0a3/Viralogix-Windows.zip), extract it fully, and double-click **Viralogix-Setup.cmd**.
-Setup reuses your existing Ubuntu and Conda, creates a separate Viralogix environment, and adds the blue desktop shortcut. If Conda is missing, it installs checksum-verified Miniforge. If Ubuntu is absent, it asks before starting Windows WSL installation.
+Download [Viralogix-Windows.zip](https://github.com/crackberryq/Virologix/releases/download/v0.1.0a4/Viralogix-Windows.zip), extract it fully, and double-click **Viralogix-Setup.cmd**.
+Setup reuses your existing Ubuntu and Conda installation, creates a dedicated desktop application environment, and adds the blue desktop shortcut. If Conda is missing, it installs checksum-verified Miniforge. If Ubuntu is absent, it asks before starting Windows WSL installation.
 
 Launch from the desktop shortcut. Closing its last window stops the Viralogix session after a short grace period without terminating other Ubuntu work. **Close Viralogix and rerun Setup to update to the latest prerelease.**
 
@@ -51,3 +51,5 @@ See docs/architecture.md and docs/cfasta-draft.md before implementing the builde
 
 Viralogix is the blue virology platform in Human Link GenoMix. Bactologix retains its green bacterial identity. The platforms share a rounded monogram and workspace layout; Viralogix uses a v mark, blue accents (#2563EB), navy text (#102D56) and pale blue surfaces. Packaged SVG, PNG and Windows ICO assets live in `src/viralogix/assets`. Retain this identity in future launchers and workflows.
 
+
+The desktop environment lives at `~/.local/share/viralogix/app-env`. Named environments such as `viralogix`, `bactomics`, and existing analysis tools are not modified. Internal package and directory names remain `viralogix` for compatibility; the displayed product name is Virologix.

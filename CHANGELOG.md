@@ -1,3 +1,13 @@
+## 0.1.0a4 — Isolated desktop installation
+
+Download **Viralogix-Windows.zip**, extract it fully and run **Viralogix-Setup.cmd**.
+
+- Fix setup failure caused by reusing a pre-existing workflow environment containing unrelated broken dependencies.
+- Install the desktop app in `~/.local/share/viralogix/app-env` with Conda default packages disabled. Preserve all existing named environments and workspace data.
+- Display Virologix in the app and installer, retaining the blue V logo and compatibility filenames.
+- Clarify installation stages and include subprocess errors in the Windows setup log and error dialog.
+- Close the app before rerunning Setup. The sequencing builder remains planned.
+
 ## 0.1.0a3 — Human Link GenoMix desktop preview
 
 Download **Viralogix-Windows.zip**, extract it fully and run **Viralogix-Setup.cmd**.

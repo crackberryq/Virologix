@@ -8,13 +8,13 @@ from viralogix.samples import register
 from viralogix.cfasta import parse, export_consensus
 
 ASSETS = Path(__file__).parent / "assets"
-st.set_page_config(page_title="Viralogix | Human Link GenoMix", page_icon=str(ASSETS / "brand.png"), layout="wide")
+st.set_page_config(page_title="Virologix | Human Link GenoMix", page_icon=str(ASSETS / "brand.png"), layout="wide")
 st.markdown("""<style>.stApp {background:#f5f8ff} h1,h2,h3 {color:#102d56}
 [data-testid="stSidebar"]{background:#eaf1fc} .stButton>button{border-radius:10px; border-color:#2563eb; color:#1d4ed8}
 </style>""", unsafe_allow_html=True)
 store = Store()
 st.sidebar.image(str(ASSETS / "brand.png"), width=48)
-st.sidebar.title("Viralogix")
+st.sidebar.title("Virologix")
 st.sidebar.caption("HUMAN LINK GenoMix")
 st.sidebar.caption("VIROLOGY WORKSPACE • " + __version__)
 page = st.sidebar.radio("Workspace", ["Overview", "Samples", "cFASTA", "Setup"])

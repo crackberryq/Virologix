@@ -31,7 +31,7 @@ def test_conda_detection_does_not_guess_nonexistent_executable(monkeypatch, tmp_
 
 
 @pytest.mark.parametrize('launch', [False, True])
-@pytest.mark.parametrize('environment,existing', [(None, False), ('viralogix', False), ('viralogix', True), ('viralogix', True)])
+@pytest.mark.parametrize('environment,existing', [(None, False), ('app-env', False), ('app-env', True)])
 def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch):
     import json
     from types import SimpleNamespace
@@ -42,12 +42,20 @@ def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch)
     monkeypatch.setattr(installer.shutil, 'disk_usage', lambda p: SimpleNamespace(free=10 * 2**30))
     monkeypatch.setattr(installer, 'find_conda', lambda: '/fixture/conda')
     monkeypatch.setattr(installer.sys, 'argv', ['installer'] + ([] if launch else ['--no-launch']))
-    envs = [str(tmp_path/environment)] if environment else []
+    prefix = tmp_path/'.local/share/viralogix/app-env'
+    if environment:
+        (prefix/'bin').mkdir(parents=True)
+        (prefix/'bin/python').touch()
+    envs = [str(tmp_path/'miniconda3/envs/viralogix')]
+    Path(envs[0]).mkdir(parents=True)
+    (Path(envs[0])/'unrelated-tools').write_text('preserve')
     commands = []
     def run(argv, log, capture=False):
         argv = list(map(str, argv)); commands.append(argv)
         if argv[1:3] == ['env', 'list']: return json.dumps({'envs':envs})
-        if argv[1] == 'create': envs.append(str(tmp_path/'viralogix'))
+        if argv[1] == 'create':
+            assert argv[2:4] == ['--prefix', str(prefix)]
+            assert '--no-default-packages' in argv
         if 'importlib.util' in argv[-1]: return str(existing)
         return ''
     monkeypatch.setattr(installer, 'run', run)
@@ -55,13 +63,15 @@ def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch)
     monkeypatch.setattr(installer, 'download', lambda a,p:p.write_bytes(b'fixture'))
     def launch_app(argv):
         assert not (tmp_path/'.local/share/viralogix/install.lock').exists()
-        assert argv == [str(Path(envs[0])/'bin/viralogix'), 'serve']
+        assert argv == [str(prefix/'bin/viralogix'), 'serve']
         return 0
     monkeypatch.setattr(installer.subprocess, 'call', launch_app)
     assert installer.main() == 0
     assert any('install' in cmd for cmd in commands) is not existing
     assert any('create' in cmd for cmd in commands) is (environment is None)
     assert not (tmp_path/'.local/share/viralogix/install.lock').exists()
+    assert (Path(envs[0])/'unrelated-tools').read_text() == 'preserve'
+    assert not any(str(Path(envs[0])/'bin/python') in cmd for cmd in commands)
 
 
 def test_download_integrity_and_interruption(tmp_path, monkeypatch):
@@ -97,3 +107,10 @@ def test_preflight_low_disk_has_no_install_side_effects(tmp_path, monkeypatch, c
     else:
         with pytest.raises(SystemExit):installer.main()
     assert not (tmp_path/'.local').exists()
+
+
+def test_command_error_exposes_dependency_details(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(installer.subprocess, 'run', lambda *a, **k: SimpleNamespace(returncode=1, stdout='multiqc requires boto3', stderr=''))
+    with pytest.raises(RuntimeError, match='multiqc requires boto3'):
+        installer.run(['python', '-m', 'pip', 'check'], tmp_path/'setup.log')

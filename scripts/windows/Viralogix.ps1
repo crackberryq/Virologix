@@ -117,7 +117,7 @@ function New-Progress([string]$Title) {
     $png = Join-Path $PSScriptRoot 'brand.png'
     if (Test-Path $png) { $picture.Image = [Drawing.Image]::FromFile($png) }
     $brand = New-Object Windows.Forms.Label
-    $brand.Text = 'Viralogix'; $brand.SetBounds(96,19,500,39)
+    $brand.Text = 'Virologix'; $brand.SetBounds(96,19,500,39)
     $brand.Font = New-Object Drawing.Font('Segoe UI',25,[Drawing.FontStyle]::Bold); $brand.ForeColor = [Drawing.Color]::White
     $tag = New-Object Windows.Forms.Label
     $tag.Text = 'HUMAN LINK GenoMix'; $tag.SetBounds(100,63,470,24)
@@ -131,7 +131,7 @@ function New-Progress([string]$Title) {
     $bar.SetBounds(32,254,610,12); $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 28
     $steps = New-Object Windows.Forms.Label
     $steps.SetBounds(32,290,610,75); $steps.ForeColor = [Drawing.ColorTranslator]::FromHtml('#2563EB')
-    $steps.Text = 'Ubuntu  >  Conda  >  Viralogix  >  Viralogix  >  Desktop shortcut'
+    $steps.Text = 'Ubuntu  >  Conda  >  App environment  >  Virologix  >  Shortcut'
     $footer = New-Object Windows.Forms.Label
     $footer.SetBounds(32,388,610,32); $footer.Text = 'Your pipelines, databases and completed work stay in place.'
     $footer.ForeColor = [Drawing.ColorTranslator]::FromHtml('#52676B')
@@ -151,7 +151,7 @@ function New-Shortcut([string]$Directory, [string]$Destination) {
     $shortcut.Arguments = Quote-Argument (Join-Path $Directory 'Viralogix.vbs')
     $shortcut.WorkingDirectory = $Directory
     $shortcut.IconLocation = (Join-Path $Directory 'brand.ico') + ',0'
-    $shortcut.Description = 'Viralogix - Human Link GenoMix virology workspace'
+    $shortcut.Description = 'Virologix - Human Link GenoMix virology workspace'
     $shortcut.Save()
 }
 function Find-Browser {
@@ -256,21 +256,25 @@ function Install-Desktop($View) {
             $status = Read-Json (Join-Path $script:Root 'setup-status.json')
             if ($status) {
                 Show-Stage $View $status.title $status.detail
-                $View.Steps.Text = "Stage $($status.step) of 5`r`nUbuntu  >  Conda  >  Viralogix  >  Viralogix  >  Desktop shortcut"
+                $View.Steps.Text = "Stage $($status.step) of 5`r`nUbuntu  >  Conda  >  App environment  >  Virologix  >  Shortcut"
             }
             [Windows.Forms.Application]::DoEvents()
         }
     } finally { Save-Log $task (Join-Path $script:Root 'setup.log') }
-    if ($task.Process.ExitCode -ne 0) { throw "Application setup stopped. See $script:Root\setup.log for details." }
+    if ($task.Process.ExitCode -ne 0) {
+        $logPath = Join-Path $script:Root 'setup.log'
+        $details = (Get-Content -LiteralPath $logPath -Tail 16 -ErrorAction SilentlyContinue) -join "`r`n"
+        throw "Application setup stopped.`r`n$details`r`nFull log: $logPath"
+    }
     $installed = Read-Json $result
     if (-not $installed.python) { throw 'The installer did not record a Python environment.' }
     $null = Capture @('--distribution',$Distro,'--exec',$installed.python,'-c','import viralogix.desktop')
     Write-Json (Join-Path $script:Root 'installation.json') @{ distro=$Distro; python=$installed.python }
-    New-Shortcut $script:Root (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Viralogix.lnk')
+    New-Shortcut $script:Root (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Virologix.lnk')
     Show-Stage $View 'Ready for your next discovery' 'Viralogix is installed. Use the desktop shortcut for a silent Ubuntu launch and controlled shutdown.'
     $View.Bar.Style = 'Continuous'; $View.Bar.Value = 100
     $View.Steps.Text = 'Ubuntu checked   |   Environment ready   |   Shortcut created'
-    [Windows.Forms.MessageBox]::Show('Setup complete. Double-click the Viralogix desktop icon to open the app.', 'Viralogix', 'OK', 'Information') | Out-Null
+    [Windows.Forms.MessageBox]::Show('Setup complete. Double-click the Viralogix desktop icon to open the app.', 'Virologix', 'OK', 'Information') | Out-Null
 }
 function Run-Desktop($View) {
     $installed = Read-Json (Join-Path $script:Root 'installation.json')
@@ -355,11 +359,11 @@ function Run-Desktop($View) {
 }
 if (-not $TestMode) {
     $script:AllowClose = $false
-    $view = New-Progress $(if ($Setup) { 'Viralogix Setup' } else { 'Viralogix' })
+    $view = New-Progress $(if ($Setup) { 'Virologix Setup' } else { 'Virologix' })
     try { if ($Setup) { Install-Desktop $view } else { Run-Desktop $view } }
     catch {
         Show-Stage $view 'A step needs your attention' $_.Exception.Message
         $view.Bar.Style = 'Continuous'; $view.Bar.Value = 0
-        [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Viralogix', 'OK', 'Warning') | Out-Null
+        [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Virologix', 'OK', 'Warning') | Out-Null
     } finally { $script:AllowClose = $true; $view.Form.Close(); $view.Form.Dispose() }
 }

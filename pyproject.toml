@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viralogix"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "Local virology workspace and cFASTA companion"
 readme = "README.md"
 requires-python = ">=3.11"

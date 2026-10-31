@@ -51,13 +51,14 @@ def run(argv, log, capture=False):
     with log.open('a') as f:
         f.write('\n' + ' '.join(map(str, argv)) + '\n' + result.stdout + result.stderr)
     if result.returncode:
-        raise RuntimeError('Command failed. See setup log: ' + str(log))
+        detail = (result.stderr or result.stdout).strip()[-3000:]
+        raise RuntimeError('Command failed: ' + ' '.join(map(str, argv)) + '\n' + detail + '\nFull setup log: ' + str(log))
     return result.stdout if capture else None
 
 
 def find_conda():
     candidates = [os.environ.get('CONDA_EXE'), shutil.which('conda')]
-    candidates += [str(Path.home() / p / 'bin/conda') for p in ('miniforge3', 'miniconda3', 'anaconda3', '.local/share/viralogix/conda')]
+    candidates += [str(Path.home() / p / 'bin/conda') for p in ('miniforge3', 'miniconda3', 'anaconda3', '.local/share/viralogix/conda', '.local/share/bactomics/conda')]
     return next((p for p in candidates if p and Path(p).is_file() and os.access(p, os.X_OK)), None)
 
 
@@ -124,22 +125,20 @@ def main():
                     raise ValueError('Incomplete Conda location already exists; inspect it before retrying: ' + str(prefix))
                 run(['bash', installer, '-b', '-p', prefix], log)
                 conda = str(prefix / 'bin/conda')
-            progress(3, 'Preparing Viralogix', 'Reusing the existing environment or creating it once')
-            envs = json.loads(run([conda, 'env', 'list', '--json'], log, capture=True))['envs']
-            known = {Path(p).name: p for p in envs}
-            prefix = known.get('viralogix')
-            if not prefix:
-                run([conda, 'create', '-n', 'viralogix', '--override-channels', '-c', 'conda-forge', 'python=3.11', 'pip', '-y'], log)
-                envs = json.loads(run([conda, 'env', 'list', '--json'], log, capture=True))['envs']
-                prefix = next(p for p in envs if Path(p).name == 'viralogix')
-            python = Path(prefix) / 'bin/python'
+            progress(3, 'Preparing application environment', 'Using a dedicated environment; existing workflow environments are untouched')
+            prefix = root / 'app-env'
+            python = prefix / 'bin/python'
+            if not python.is_file():
+                if prefix.exists():
+                    raise ValueError('Application environment is incomplete; inspect before retrying: ' + str(prefix))
+                run([conda, 'create', '--prefix', prefix, '--no-default-packages', '--override-channels', '-c', 'conda-forge', 'python=3.12', 'pip', '-y'], log)
             run([python, '-c', 'import sys; assert sys.version_info >= (3,11), "Python 3.11+ required"'], log)
             installed = run([python, '-c', 'import importlib.util; print(bool(importlib.util.find_spec("viralogix")))'], log, capture=True).strip()
             if installed == 'True' and not args.upgrade_app:
                 print('Existing Viralogix preserved. Rerun Setup or use --upgrade-app to change versions.')
                 command = Path(prefix) / 'bin/viralogix'
             else:
-                progress(4, 'Installing Viralogix', 'Discovering a published release and checking its download checksum')
+                progress(4, 'Installing Virologix', 'Discovering a published release and checking its download checksum')
                 rows = get_json('https://api.github.com/repos/crackberryq/Virologix/releases?per_page=100')
                 release = select_release(rows, args.channel)
                 asset = next(a for a in release['assets'] if a['name'].startswith('viralogix-') and a['name'].endswith('-py3-none-any.whl'))
