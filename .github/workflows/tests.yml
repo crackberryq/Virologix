@@ -1,0 +1,60 @@
+name: Check and release Viralogix
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[test]' build
+      - run: python -m pytest -q
+      - run: python -m build
+      - run: python scripts/build_windows_bundle.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*
+  windows-desktop:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - shell: powershell
+        run: ./tests/windows_desktop.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer-preview
+          path: windows-setup-preview.png
+  publish:
+    needs: [tests, windows-desktop]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: viralogix-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - run: python scripts/publish_release.py
+        env:
+          GH_TOKEN: ${{ github.token }}

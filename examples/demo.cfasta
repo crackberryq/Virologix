@@ -1,0 +1,7 @@
+>sample=DEMO|segment=SEGMENT_A|length=10|format=cFASTA-v1.0
+ATGCTACGAT
+
+#HAPLOTYPES
+#id	abundance	confidence	support	resolution	span	edits
+H1	0.7	HIGH	70	LOCAL	3-6	.
+H2	0.3	MED	30	LOCAL	3-6	3:G>A
