@@ -52,8 +52,9 @@ def test_workspace(tmp_path):
             page.screenshot(path=str(artifacts/'samples-desktop.png'), full_page=True)
             nav.get_by_role('link', name='cFASTA workbench').click()
             page.locator('#cfasta-file').set_input_files(repo/'examples/demo.cfasta')
-            expect(page.get_by_text('Syntax valid: 1 segments')).to_be_visible()
+            expect(page.get_by_text('Syntax valid: 1 segment')).to_be_visible()
             expect(page.get_by_text('Draft semantics:', exact=False)).to_be_visible()
+            expect(page.get_by_text('Reviewed file: demo.cfasta')).to_be_visible()
             with page.expect_download() as downloaded:
                 page.get_by_role('button',name='Download consensus FASTA').click()
             assert Path(downloaded.value.path()).read_text() == '>VG000001 sample=DEMO|segment=SEGMENT_A\nATGCTACGAT\n'

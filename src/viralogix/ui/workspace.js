@@ -6,7 +6,7 @@ export default function(component) {
   root._dispose = () => abort.abort();
   const on = (target, event, callback) => target.addEventListener(event, callback, {signal:abort.signal});
   const $ = selector => root.querySelector(selector);
-  const U = root._virologixState ||= {view:'overview', filter:'', draft:{}, pending:null, responseId:null, inspection:null, notice:null};
+  const U = root._virologixState ||= {view:'overview', filter:'', draft:{}, pending:null, responseId:null, inspection:null, filename:'', notice:null};
   const S = data.workspace;
   const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const paths = {overview:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',samples:'M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5',cfasta:'M8 3H5v18h14V7l-4-4H8 M14 3v5h5 M8 12h8 M8 16h5',pipelines:'M4 4h5v5H4z M15 15h5v5h-5z M6 9v8h9 M9 6h8v9',runs:'M8 5l11 7-11 7z',setup:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',resources:'M3 5h18v14H3z M3 10h18 M7 14h3',arrow:'M5 12h14 M14 7l5 5-5 5'};
@@ -49,10 +49,10 @@ export default function(component) {
   function inspection(){
     const r=U.inspection;if(!r)return '';
     const columns=['id','abundance','confidence','support','resolution','span','edits'];
-    return `<div class="notice"><div><strong>Syntax valid: ${r.entries.length} segments</strong><p>This checks file syntax; it does not verify biological results.</p></div></div><div class="notice amber"><p>Draft semantics: consensus is not automatically an observed haplotype. Local rows may overlap and their abundances must not be pooled.</p></div><button class="btn" data-action="download">Download consensus FASTA</button>`+
+    return `<div class="notice"><div><strong>Syntax valid: ${r.entries.length} ${r.entries.length===1?'segment':'segments'}</strong><p>This checks file syntax; it does not verify biological results.</p></div></div><div class="notice amber"><p>Draft semantics: consensus is not automatically an observed haplotype. Local rows may overlap and their abundances must not be pooled.</p></div><button class="btn" data-action="download">Download consensus FASTA</button>`+
       r.entries.map(entry=>`<details class="card v-result"><summary>${e(entry.metadata.sample)} / ${e(entry.metadata.segment)}</summary><div class="card-body"><pre class="code-block">${e(entry.consensus)}</pre></div><div class="table-wrap"><table><thead><tr>${columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${entry.haplotypes.length?entry.haplotypes.map(row=>`<tr>${columns.map(c=>`<td>${e(row[c])}</td>`).join('')}</tr>`).join(''):'<tr><td colspan="7">No rows recorded.</td></tr>'}</tbody></table></div></details>`).join('');
   }
-  function cfasta(){return heading('cFASTA workbench','Inspect an existing file and download a separate ordinary consensus FASTA export.')+card('Open a cFASTA file','Interactive preview supports UTF-8 .cfasta files up to 10 MiB.',`<label for="cfasta-file" class="v-note">Choose a local file for inspection</label><input class="v-file" id="cfasta-file" type="file" accept=".cfasta" ${U.pending?'disabled':''}><p class="v-note">${U.pending==='inspect'?'Inspecting…':'The selected file is read by your local Virologix instance. No pipeline is started.'}</p>`)+inspection();}
+  function cfasta(){return heading('cFASTA workbench','Inspect an existing file and download a separate ordinary consensus FASTA export.')+card('Open a cFASTA file','Interactive preview supports UTF-8 .cfasta files up to 10 MiB.',`<label for="cfasta-file" class="v-note">Choose a local file for inspection</label><input class="v-file" id="cfasta-file" type="file" accept=".cfasta" ${U.pending?'disabled':''}><p class="v-note">${U.pending==='inspect'?'Inspecting '+e(U.filename)+'…':U.inspection?'Reviewed file: '+e(U.filename):'The selected file is read by your local Virologix instance. No pipeline is started.'}</p>`)+inspection();}
   function planned(view){
     const content={pipelines:['Pipelines','Prepare for future integrations.','Pipeline integrations are in development','Installation and execution controls will become available when a pipeline is connected.'],runs:['Runs','Execution and provenance will appear here when pipelines are connected.','No execution backend connected','Registering a sample or inspecting a file does not create an analysis run.'],resources:['Databases & resources','A consistent home for future pipeline resources.','No resource requirements published yet','Database setup and resource management will be connected alongside the pipelines.']}[view];
     return heading(content[0],content[1])+card(content[2],'Planned',`<div class="empty">${icon(view)}<h3>Ready for integration</h3><p>${content[3]}</p>${pill('Planned','off')}</div>`);
@@ -101,7 +101,7 @@ export default function(component) {
     if(event.target.id!=='cfasta-file')return;const file=event.target.files[0];if(!file)return;
     U.inspection=null;
     if(file.size>10*1024*1024 || !file.name.toLowerCase().endsWith('.cfasta')){U.notice={ok:false,text:'Choose a .cfasta file no larger than 10 MiB.'};render();return;}
-    try{const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());send('inspect',{name:file.name,text});}
+    try{U.filename=file.name;const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());send('inspect',{name:file.name,text});}
     catch(error){U.notice={ok:false,text:'Could not read this file as UTF-8.'};render();}
   });
   on(root,'keydown',event=>{
