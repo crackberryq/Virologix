@@ -131,7 +131,7 @@ function New-Progress([string]$Title) {
     $bar.SetBounds(32,254,610,12); $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 28
     $steps = New-Object Windows.Forms.Label
     $steps.SetBounds(32,290,610,75); $steps.ForeColor = [Drawing.ColorTranslator]::FromHtml('#2563EB')
-    $steps.Text = 'Ubuntu  >  Conda  >  App environment  >  Virologix  >  Shortcut'
+    $steps.Text = 'Ubuntu  >  Conda  >  viromics  >  Virologix  >  Shortcut'
     $footer = New-Object Windows.Forms.Label
     $footer.SetBounds(32,388,610,32); $footer.Text = 'Your pipelines, databases and completed work stay in place.'
     $footer.ForeColor = [Drawing.ColorTranslator]::FromHtml('#52676B')
@@ -256,7 +256,7 @@ function Install-Desktop($View) {
             $status = Read-Json (Join-Path $script:Root 'setup-status.json')
             if ($status) {
                 Show-Stage $View $status.title $status.detail
-                $View.Steps.Text = "Stage $($status.step) of 5`r`nUbuntu  >  Conda  >  App environment  >  Virologix  >  Shortcut"
+                $View.Steps.Text = "Stage $($status.step) of 5`r`nUbuntu  >  Conda  >  viromics  >  Virologix  >  Shortcut"
             }
             [Windows.Forms.Application]::DoEvents()
         }

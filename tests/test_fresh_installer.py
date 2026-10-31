@@ -31,7 +31,7 @@ def test_conda_detection_does_not_guess_nonexistent_executable(monkeypatch, tmp_
 
 
 @pytest.mark.parametrize('launch', [False, True])
-@pytest.mark.parametrize('environment,existing', [(None, False), ('app-env', False), ('app-env', True)])
+@pytest.mark.parametrize('environment,existing', [(None, False), ('viromics', False), ('viromics', True), ('unowned', False)])
 def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch):
     import json
     from types import SimpleNamespace
@@ -42,19 +42,24 @@ def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch)
     monkeypatch.setattr(installer.shutil, 'disk_usage', lambda p: SimpleNamespace(free=10 * 2**30))
     monkeypatch.setattr(installer, 'find_conda', lambda: '/fixture/conda')
     monkeypatch.setattr(installer.sys, 'argv', ['installer'] + ([] if launch else ['--no-launch']))
-    prefix = tmp_path/'.local/share/viralogix/app-env'
+    prefix = tmp_path/'miniconda3/envs/viromics'
     if environment:
         (prefix/'bin').mkdir(parents=True)
         (prefix/'bin/python').touch()
+        if environment != 'unowned':
+            (prefix/'.virologix-desktop').touch()
     envs = [str(tmp_path/'miniconda3/envs/viralogix')]
     Path(envs[0]).mkdir(parents=True)
     (Path(envs[0])/'unrelated-tools').write_text('preserve')
+    if environment: envs.append(str(prefix))
     commands = []
     def run(argv, log, capture=False):
         argv = list(map(str, argv)); commands.append(argv)
         if argv[1:3] == ['env', 'list']: return json.dumps({'envs':envs})
         if argv[1] == 'create':
-            assert argv[2:4] == ['--prefix', str(prefix)]
+            assert argv[2:4] == ['--name', 'viromics']
+            prefix.mkdir(parents=True)
+            envs.append(str(prefix))
             assert '--no-default-packages' in argv
         if 'importlib.util' in argv[-1]: return str(existing)
         return ''
@@ -66,6 +71,11 @@ def test_install_and_reuse(tmp_path, monkeypatch, environment, existing, launch)
         assert argv == [str(prefix/'bin/viralogix'), 'serve']
         return 0
     monkeypatch.setattr(installer.subprocess, 'call', launch_app)
+    if environment == 'unowned':
+        with pytest.raises(ValueError, match='left untouched'):
+            installer.main()
+        assert not any('create' in cmd or 'install' in cmd for cmd in commands)
+        return
     assert installer.main() == 0
     assert any('install' in cmd for cmd in commands) is not existing
     assert any('create' in cmd for cmd in commands) is (environment is None)

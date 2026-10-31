@@ -1,4 +1,4 @@
-name: viralogix
+name: viromics
 channels:
   - conda-forge
 dependencies:

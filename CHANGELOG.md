@@ -1,3 +1,12 @@
+## 0.1.0a5 — Consistent viromics environment
+
+Download **Viralogix-Windows.zip**, extract fully and run **Viralogix-Setup.cmd**.
+
+- Virologix now uses the named Conda environment **viromics**, matching Bactologix's **bactomics** convention.
+- Reuse only installer-owned viromics environments. Preserve existing viralogix, bactomics and other analysis environments.
+- Retain the installation isolation fix, clearer errors, corrected Virologix display name and blue V branding.
+- After installation: `conda activate viromics`, then `viralogix serve`, or use the desktop shortcut.
+
 ## 0.1.0a4 — Isolated desktop installation
 
 Download **Viralogix-Windows.zip**, extract it fully and run **Viralogix-Setup.cmd**.

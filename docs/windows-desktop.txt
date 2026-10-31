@@ -1,7 +1,7 @@
 VIRALOGIX FOR WINDOWS (alpha)
 
 1. Extract Viralogix-Windows.zip fully, then double-click Viralogix-Setup.cmd.
-2. Setup checks Ubuntu, installs/reuses Conda and the Viralogix environment,
+2. Setup checks Ubuntu, installs/reuses Conda and the viromics environment,
    updates the application, and creates the branded Viralogix desktop shortcut.
 3. If WSL/Ubuntu needs installation, accept the Windows administrator prompt.
    Restart Windows if requested, open Ubuntu once to create your regular Linux

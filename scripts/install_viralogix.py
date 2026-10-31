@@ -125,13 +125,24 @@ def main():
                     raise ValueError('Incomplete Conda location already exists; inspect it before retrying: ' + str(prefix))
                 run(['bash', installer, '-b', '-p', prefix], log)
                 conda = str(prefix / 'bin/conda')
-            progress(3, 'Preparing application environment', 'Using a dedicated environment; existing workflow environments are untouched')
-            prefix = root / 'app-env'
+            progress(3, 'Preparing viromics', 'Creating or reusing the dedicated viromics application environment')
+            envs = json.loads(run([conda, 'env', 'list', '--json'], log, capture=True))['envs']
+            matches = [Path(p) for p in envs if Path(p).name == 'viromics']
+            if len(matches) > 1:
+                raise ValueError('Multiple viromics environments found; resolve the ambiguity before setup.')
+            if matches:
+                prefix = matches[0]
+                if not (prefix / '.virologix-desktop').is_file():
+                    raise ValueError('An existing viromics environment was not created by this installer. It has been left untouched: ' + str(prefix))
+            else:
+                run([conda, 'create', '--name', 'viromics', '--no-default-packages', '--override-channels', '-c', 'conda-forge', 'python=3.12', 'pip', '-y'], log)
+                envs = json.loads(run([conda, 'env', 'list', '--json'], log, capture=True))['envs']
+                matches = [Path(p) for p in envs if Path(p).name == 'viromics']
+                if len(matches) != 1:
+                    raise ValueError('Could not identify the newly created viromics environment.')
+                prefix = matches[0]
+                (prefix / '.virologix-desktop').write_text('Human Link GenoMix desktop environment\n')
             python = prefix / 'bin/python'
-            if not python.is_file():
-                if prefix.exists():
-                    raise ValueError('Application environment is incomplete; inspect before retrying: ' + str(prefix))
-                run([conda, 'create', '--prefix', prefix, '--no-default-packages', '--override-channels', '-c', 'conda-forge', 'python=3.12', 'pip', '-y'], log)
             run([python, '-c', 'import sys; assert sys.version_info >= (3,11), "Python 3.11+ required"'], log)
             installed = run([python, '-c', 'import importlib.util; print(bool(importlib.util.find_spec("viralogix")))'], log, capture=True).strip()
             if installed == 'True' and not args.upgrade_app:
