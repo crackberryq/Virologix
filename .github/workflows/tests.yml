@@ -37,8 +37,24 @@ jobs:
         with:
           name: windows-installer-preview
           path: windows-setup-preview.png
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[test]' playwright==1.51.0
+      - run: python -m playwright install --with-deps chromium
+      - run: VIRALOGIX_BROWSER_TESTS=1 python -m pytest tests/test_browser.py -q
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workspace-browser-previews
+          path: browser-artifacts/*
   publish:
-    needs: [tests, windows-desktop]
+    needs: [tests, windows-desktop, browser]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

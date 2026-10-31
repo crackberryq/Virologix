@@ -1,3 +1,11 @@
+## 0.1.0a6 — Shared workspace design
+
+- Align the Virologix interface with Bactologix: navigation, cards, tables, spacing, responsive drawer and workspace tools, with blue V branding and Human Link GenoMix identity.
+- Preserve local sample registration, cFASTA inspection and consensus export through the existing utilities.
+- Provide consistent, explicitly planned pages for pipelines, runs and databases/resources. No execution backend is introduced.
+- Add accessible labels, keyboard dialog handling, sample search and a browser acceptance gate.
+- Keep existing workspaces, installer behavior and the viromics environment convention.
+
 ## 0.1.0a5 — Consistent viromics environment
 
 Download **Viralogix-Windows.zip**, extract fully and run **Viralogix-Setup.cmd**.

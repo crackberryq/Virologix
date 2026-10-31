@@ -55,3 +55,9 @@ Viralogix is the blue virology platform in Human Link GenoMix. Bactologix retain
 The desktop environment lives at the named Conda environment `viromics`. Named environments such as `viralogix`, `bactomics`, and existing analysis tools are not modified. Internal package and directory names remain `viralogix` for compatibility; the displayed product name is Virologix.
 
 Naming convention: **Bactologix → bactomics**, **Virologix → viromics**, both under **Human Link GenoMix**. The installer only reuses `viromics` environments carrying its ownership marker; an unrelated existing environment is left untouched.
+
+## Workspace interface
+
+Virologix uses the Bactologix workspace layout with blue V branding: a shared sidebar, cards, tables, responsive mobile navigation and workspace tools. Register local samples, search the registry, inspect an existing cFASTA file and export consensus FASTA. Pipelines, Runs and Databases & resources have consistent planned states until their integrations are ready. The interface does not start analyses.
+
+The presentation stylesheet is adapted from Bactologix commit `84f48d9553c1671bbbb662382f923c94544996f5` (MIT, Jimi Goldstein). The Virologix backend remains separate. Browser acceptance runs against temporary software fixtures, including desktop/mobile layouts, registration, inspection and downloads.
