@@ -36,6 +36,17 @@ def enqueue(store,kind,payload,request_id):
             if previous:return previous[0]
         if db.execute("SELECT 1 FROM jobs WHERE status IN ('queued','running')").fetchone():
             raise ValueError('A task is already active. Wait for it to finish before starting another.')
+        rid=payload.get('run_id') or payload.get('resume',{}).get('id')
+        if rid:
+            row=db.execute("SELECT body FROM items WHERE kind='cloud_runs' AND id=?",(rid,)).fetchone()
+            run=json.loads(row[0]) if row else {}
+            expected='failed' if 'resume' in payload else 'draft'
+            if run.get('status')!=expected or run.get('archived'):
+                raise ValueError('The saved run changed. Refresh before starting it.')
+            if payload.get('draft') and payload['draft']!=run:
+                raise ValueError('The draft changed while preparing inputs. Refresh and start again.')
+            run.update(status='queued',job_id=jid)
+            db.execute("UPDATE items SET body=? WHERE kind='cloud_runs' AND id=?",(json.dumps(run),rid))
         db.execute('INSERT INTO jobs(id,kind,payload,status,created) VALUES(?,?,?,?,?)',
                    (jid,kind,json.dumps(payload),'queued',now()))
     try:
@@ -46,6 +57,10 @@ def enqueue(store,kind,payload,request_id):
     except OSError as exc:
         with store.connect() as db:
             db.execute("UPDATE jobs SET status='failed',finished=?,error=? WHERE id=?",(now(),str(exc),jid))
+        if rid:
+            run=store.get('cloud_runs',rid)
+            run.update(status=expected,error=str(exc))
+            store.put('cloud_runs',rid,run)
         raise
     return jid
 
@@ -61,7 +76,7 @@ def queue_run(store,args,request_id,demo=False):
     from .updates import assert_current
     assert_current(store)
     installed=installation(store)
-    if not installed['ready']:raise ValueError('Install FluPop from Pipelines before starting a run.')
+    if not installed['ready']:raise ValueError('Install FluPop from Install & update before starting a run.')
     sample='DEMO' if demo else args.get('sample','')
     if not isinstance(sample,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*',sample):
         raise ValueError('Sample ID must start with a letter or digit and use letters, digits, dots, underscores or hyphens.')
@@ -85,7 +100,7 @@ def task_snapshot(store):
                 stream.seek(max(0,path.stat().st_size-6000))
                 tail=stream.read().decode('utf-8',errors='replace')
         tasks.append({k:j[k] for k in ('id','kind','status','created','error') } | {'log':tail})
-        if len(tasks)==3:break
+
     return tasks
 
 
@@ -120,6 +135,8 @@ def handle_pipeline(store,action,args,request_id):
         run=store.get('cloud_runs',str(args.get('run_id','')))
         if not run or run.get('pipeline')!='flupop' or run.get('status')!='failed':
             raise ValueError('Only failed FluPop runs can be resumed.')
+        if not run.get('path') or not (Path(run['path'])/'config.json').is_file():
+            raise ValueError('This run stopped before setup finished. Create a new draft from its saved settings.')
         jid=enqueue(store,'flupop_run',{'resume':run},request_id)
         return {'message':'Resuming FluPop with its original inputs and environment.','job_id':jid}
     return queue_run(store,args,request_id,demo=action=='cloud-demo')

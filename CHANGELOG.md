@@ -1,3 +1,13 @@
+# 0.1.0a10 — Shared manager workflow
+
+- Matches Bactologix sidebar labels, order, icons and WORK / MANAGE groups while retaining Virologix blue branding.
+- Registers sample folders and creates persistent FluPop run drafts; saving is separate from execution.
+- Adds run detail, draft editing/copying, search/status filters, archive/restore, browser draft recovery and history navigation.
+- Separates Jobs & progress, Results & reports, and Install & update; keeps legacy reports accessible.
+- Protects active/completed records from draft edits and preserves original inputs/environment on resume.
+- Includes synthetic external-pipeline and desktop/mobile browser acceptance tests.
+- Execution remains one job at a time. Advanced Bactologix batch, cancellation and resource-budget controls are not yet ported.
+
 # 0.1.0a9 — In-app application updates
 
 - Adds a Bactologix-style Updates screen with running/installed versions, release channels, selectable releases, release notes and progress logs.

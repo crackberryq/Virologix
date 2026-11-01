@@ -295,3 +295,6 @@ td{padding:16px 20px;line-height:1.5}.table-wrap{max-width:100%;overscroll-behav
 .bacto-root button:focus-visible,.bacto-root a:focus-visible{outline-color:#3b82f6}
 
 .bacto-root #update-channel{font:inherit;color:#102d56;background:#fff;border:1px solid #cfdaeb;border-radius:8px;padding:9px 12px;max-width:100%}
+
+.overview-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -118,7 +118,8 @@ def execute_run(store,jid,payload):
         run={**run,'status':'running','job_id':jid}
     else:
         installed=payload['installation'];sample=payload['sample']
-        folder=store.home/'runs'/jid;folder.mkdir(exist_ok=False)
+        rid=payload.get('run_id',jid)
+        folder=store.home/'runs'/rid;folder.mkdir(exist_ok=False)
         source=Path(installed['source'])
         if payload['demo']:
             inputs={k:str(source/'examples'/n) for k,n in [('consensus','consensus.fasta'),('haplotypes','haplotypes.tsv'),('evidence','evidence.json')]}
@@ -131,7 +132,7 @@ def execute_run(store,jid,payload):
                     path.write_text(text,encoding='utf-8');inputs[key]=str(path)
         config={'output_dir':str(folder/'outputs'),'synthetic_demo':payload['demo'],'samples':{sample:inputs}}
         (folder/'config.json').write_text(json.dumps(config,indent=2))
-        run={'id':jid,'pipeline':'flupop','sample':sample,'created':now(),'synthetic_demo':payload['demo'],
+        run={**payload.get('draft',{}),'id':rid,'pipeline':'flupop','sample':sample,'created':payload.get('draft',{}).get('created',now()),'synthetic_demo':payload['demo'],
              'status':'running','path':str(folder),'report_path':str(folder/'outputs'/sample/'report'),
              'installation':installed,'job_id':jid}
     store.put('cloud_runs',run['id'],run)
@@ -178,6 +179,11 @@ def main():
     except Exception as exc:
         import traceback;traceback.print_exc()
         status,error='failed',str(exc)
+        rid=job['payload'].get('run_id')
+        run=store.get('cloud_runs',rid) if rid else None
+        if run and run.get('status') in ('queued','running'):
+            run.update(status='failed',error=str(exc),finished=now())
+            store.put('cloud_runs',rid,run)
     with store.connect() as db:
         db.execute('UPDATE jobs SET status=?,finished=?,error=? WHERE id=?',(status,now(),error,args.job))
     if status=='failed':raise SystemExit(1)
