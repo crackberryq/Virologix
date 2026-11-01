@@ -17,6 +17,9 @@ def test_workspace(tmp_path):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
+    from viralogix.store import Store
+    from test_pipeline_manager import attached
+    attached(Store(tmp_path / 'workspace'))
     env = {**os.environ, 'VIRALOGIX_HOME': str(tmp_path / 'workspace')}
     log = (tmp_path / 'server.log').open('w')
     proc = subprocess.Popen([sys.executable, '-m', 'streamlit', 'run', str(repo/'src/viralogix/app.py'), '--server.port', str(port), '--server.address', '127.0.0.1', '--server.headless', 'true', '--browser.gatherUsageStats', 'false'], env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -50,22 +53,12 @@ def test_workspace(tmp_path):
             page.get_by_label('Search samples').fill('UI.fixture')
             expect(page.locator('#sample-results')).to_contain_text('UI.fixture')
             page.screenshot(path=str(artifacts/'samples-desktop.png'), full_page=True)
-            nav.get_by_role('link', name='cFASTA workbench').click()
-            page.locator('#cfasta-file').set_input_files(repo/'examples/demo.cfasta')
-            expect(page.get_by_text('Syntax valid: 1 segment')).to_be_visible()
-            expect(page.get_by_text('Draft semantics:', exact=False)).to_be_visible()
-            expect(page.get_by_text('Reviewed file: demo.cfasta')).to_be_visible()
-            with page.expect_download() as downloaded:
-                page.get_by_role('button',name='Download consensus FASTA').click()
-            assert Path(downloaded.value.path()).read_text() == '>VG000001 sample=DEMO|segment=SEGMENT_A\nATGCTACGAT\n'
-            page.locator('details.v-result summary').click()
-            page.screenshot(path=str(artifacts/'inspection-desktop.png'), full_page=True)
             for name in ['Databases & resources']:
                 nav.get_by_role('link',name=name,exact=True).click()
                 expect(page.get_by_role('heading',name='Ready for integration')).to_be_visible()
             nav.get_by_role('link',name='Pipelines',exact=True).click()
             page.get_by_role('button',name='Run synthetic demo',exact=True).click()
-            expect(page.get_by_role('heading',name='Viral Cloud report',exact=True)).to_be_visible()
+            expect(page.get_by_role('heading',name='Viral Cloud report',exact=True)).to_be_visible(timeout=60000)
             expect(page.frame_locator('#cloud-report').get_by_role('heading',name='Viral Cloud',exact=True)).to_be_visible()
             with page.expect_download() as cloud_download:
                 page.get_by_role('button',name='Download report bundle',exact=True).click()
@@ -74,7 +67,7 @@ def test_workspace(tmp_path):
                 assert 'population.cfasta' in archive.namelist()
             nav.get_by_role('link',name='Runs',exact=True).click()
             page.get_by_role('button',name='Open report',exact=True).click()
-            expect(page.get_by_text('Viral Cloud report saved locally.')).to_be_visible()
+            expect(page.get_by_text('Viral Cloud report opened.')).to_be_visible()
             nav.get_by_role('link',name='Setup',exact=True).click()
             expect(page.get_by_text('viromics (standard installer environment)')).to_be_visible()
             page.get_by_role('button',name='Releases & updates').click()

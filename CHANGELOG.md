@@ -1,3 +1,11 @@
+# 0.1.0a8 — Independent FluPop management
+
+- Adds Install / Update / repair FluPop using its own repository and isolated versioned environment.
+- Launches Snakemake externally, with background task logs, automatic status refresh, unique run folders and failed-run resume.
+- Removes bundled Viral Cloud/cFASTA processing code and the standalone cFASTA workbench from Virologix.
+- Preserves access to v0.1.0a7 saved reports.
+- Tests the real external FluPop workflow and manager report/download flow using synthetic inputs.
+
 # 0.1.0a7 — Viral Cloud testing preview
 
 - Adds Viral Cloud to Pipelines with a one-click synthetic demo and local consensus FASTA, reviewed haplotype TSV and optional evidence JSON selection.

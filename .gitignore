@@ -7,3 +7,5 @@ dist/
 .venv/
 
 browser-artifacts/
+
+.ci/

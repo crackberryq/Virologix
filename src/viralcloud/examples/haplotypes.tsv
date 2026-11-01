@@ -1,5 +1,0 @@
-segment	id	abundance	confidence	support	resolution	span	edits
-SEG_A	H1	0.65	HIGH	130	LOCAL	1-40	.
-SEG_A	H2	0.25	MED	50	LOCAL	1-40	9:A>G
-SEG_A	H3	0.8	HIGH	80	LOCAL	61-100	.
-SEG_A	H4	0.2	MED	20	LOCAL	61-100	65:A>T

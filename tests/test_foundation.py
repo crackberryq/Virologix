@@ -1,24 +1,7 @@
 from pathlib import Path
 import pytest
-from viralogix.cfasta import parse, export_consensus
 from viralogix.store import Store, workspace
 from viralogix.samples import register
-
-DEMO = (Path(__file__).parents[1]/"examples/demo.cfasta").read_text()
-
-def test_export():
-    entries=parse(DEMO)
-    assert export_consensus(entries)==">VG000001 sample=DEMO|segment=SEGMENT_A\nATGCTACGAT\n"
-
-@pytest.mark.parametrize("old,new", [("length=10","length=11"),("3:G>A","3:A>G"),("0.7","nan"),("3-6","3-11"),("LOCAL","GLOBAL"),("3:G>A","6:-2"),("3:G>A","3:G>A;3:G>T")])
-def test_invalid(old,new):
-    with pytest.raises(ValueError): parse(DEMO.replace(old,new))
-
-def test_empty_table_allowed():
-    assert len(parse(DEMO.split("H1\t")[0])[0].haplotypes)==0
-
-def test_duplicate_entry():
-    with pytest.raises(ValueError): parse(DEMO+DEMO)
 
 def test_independent_workspace(monkeypatch,tmp_path):
     monkeypatch.setenv("BACTOLOGIX_HOME",str(tmp_path/"bacterial"))

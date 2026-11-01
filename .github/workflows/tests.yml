@@ -14,6 +14,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          repository: crackberryq/Viromics_FluPop
+          ref: 180d6a6f9759c1a078e8ea8337025f1d3ee7a0d9
+          path: .ci/flupop
+      - run: |
+          python -m venv .ci/flupop-env
+          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0
+          echo "FLUPOP_TEST_SOURCE=$GITHUB_WORKSPACE/.ci/flupop" >> "$GITHUB_ENV"
+          echo "FLUPOP_TEST_PYTHON=$GITHUB_WORKSPACE/.ci/flupop-env/bin/python" >> "$GITHUB_ENV"
       - run: python -m pip install -e '.[test]' build
       - run: python -m pytest -q
       - run: python -m build
@@ -45,6 +55,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          repository: crackberryq/Viromics_FluPop
+          ref: 180d6a6f9759c1a078e8ea8337025f1d3ee7a0d9
+          path: .ci/flupop
+      - run: |
+          python -m venv .ci/flupop-env
+          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0
+          echo "FLUPOP_TEST_SOURCE=$GITHUB_WORKSPACE/.ci/flupop" >> "$GITHUB_ENV"
+          echo "FLUPOP_TEST_PYTHON=$GITHUB_WORKSPACE/.ci/flupop-env/bin/python" >> "$GITHUB_ENV"
       - run: python -m pip install -e '.[test]' playwright==1.51.0
       - run: python -m playwright install --with-deps chromium
       - run: VIRALOGIX_BROWSER_TESTS=1 python -m pytest tests/test_browser.py -q
@@ -53,8 +73,22 @@ jobs:
         with:
           name: workspace-browser-previews
           path: browser-artifacts/*
+  pipeline-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          python-version: '3.12'
+          activate-environment: manager-test
+      - shell: bash -el {0}
+        run: |
+          python -m pip install -e .
+          python tests/install_flupop_smoke.py
   publish:
-    needs: [tests, windows-desktop, browser]
+    needs: [tests, windows-desktop, browser, pipeline-install]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

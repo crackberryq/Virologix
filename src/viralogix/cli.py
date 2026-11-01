@@ -6,7 +6,6 @@ import subprocess
 import sys
 from . import __version__
 from .store import workspace
-from .cfasta import parse, export_consensus
 
 def main():
     parser = argparse.ArgumentParser(description="Viralogix local virology workspace")
@@ -50,15 +49,9 @@ def main():
             return
         if args.command == "doctor":
             import psutil
-            print(json.dumps({"version": __version__, "home": str(workspace()), "cpu_count": os.cpu_count(), "available_ram_gib": round(psutil.virtual_memory().available / 2**30, 2), "cfasta_builder": "not implemented"}, indent=2))
+            print(json.dumps({"version": __version__, "home": str(workspace()), "cpu_count": os.cpu_count(), "available_ram_gib": round(psutil.virtual_memory().available / 2**30, 2), "role": "pipeline_manager", "pipelines": ["flupop"]}, indent=2))
         else:
-            entries = parse(args.input.read_text())
-            if args.command == "validate":
-                print(f"Syntax valid: {len(entries)} segment entries. Biological interpretation is not validated.")
-            else:
-                with args.output.open("x") as handle:
-                    handle.write(export_consensus(entries))
-                print(args.output)
+            raise ValueError("cFASTA processing belongs to FluPop. Use Virologix Pipelines to install and launch FluPop.")
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         parser.exit(2, f"Viralogix: {exc}\n")
 
