@@ -1,14 +1,22 @@
 # Virologix
 
-**Human Link GenoMix · Virologix 0.1.0a8**
+**Human Link GenoMix · Virologix 0.1.0a9**
 
 Virologix is the blue pipeline manager, matching Bactologix's role for bacterial workflows. [FluPop](https://github.com/crackberryq/Viromics_FluPop) is an independent Snakemake pipeline. FluPop owns cFASTA creation, validation and analysis/reporting code; Viral Cloud is its report name.
 
 ## Install or update on Windows
 
-Close Virologix. Download [Viralogix-Windows.zip](https://github.com/crackberryq/Virologix/releases/download/v0.1.0a8/Viralogix-Windows.zip), extract it fully, and run **Viralogix-Setup.cmd**. Reopen the blue desktop shortcut.
+Close Virologix. Download [Viralogix-Windows.zip](https://github.com/crackberryq/Virologix/releases/download/v0.1.0a9/Viralogix-Windows.zip), extract it fully, and run **Viralogix-Setup.cmd**. Reopen the blue desktop shortcut.
 
 The standard manager environment is **viromics**. Setup reuses existing Ubuntu/Conda or offers their installation as needed. It preserves registered samples, completed runs and separate pipeline installations. Internal package and launcher filenames remain `viralogix` for compatibility.
+
+## Application updates
+
+Open **Releases & updates** in the top bar, or **Updates** in the sidebar. Check for updates, choose a stable or preview release, read its notes and select **Install**. Running and installed versions are shown separately. Downloads must match the published size, SHA-256, package identity and Python requirement; the worker rechecks the selected asset before installation.
+
+Application updates run only when no other task is active. They update the manager environment, leaving FluPop and saved results separate. Progress and errors appear in the same screen. Managed desktop/launcher sessions restart automatically after a verified successful update; browser tabs reload once the new server is healthy. Direct Streamlit sessions show manual restart instructions. If pip fails after starting, restart before further work because package files may have changed. Automatic rollback and application downgrades are not implemented.
+
+The **FluPop** section offers its separate Update / repair action. Updating Virologix does not implicitly change a pipeline installation.
 
 ## Install and test FluPop through the app
 

@@ -293,3 +293,5 @@ td{padding:16px 20px;line-height:1.5}.table-wrap{max-width:100%;overscroll-behav
 @media(max-width:700px){.stats-grid{grid-template-columns:1fr}.top-actions{gap:8px}.top-actions .btn{padding:8px}.form-grid{grid-template-columns:1fr}.search{min-width:0;width:100%}}
 .pipeline-row .pill{min-width:76px;justify-content:center}
 .bacto-root button:focus-visible,.bacto-root a:focus-visible{outline-color:#3b82f6}
+
+.bacto-root #update-channel{font:inherit;color:#102d56;background:#fff;border:1px solid #cfdaeb;border-radius:8px;padding:9px 12px;max-width:100%}

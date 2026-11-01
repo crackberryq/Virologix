@@ -20,7 +20,7 @@ def main():
     serve.add_argument("--desktop-control")
     serve.add_argument("--desktop-session")
     subs.add_parser("doctor")
-    subs.add_parser("update", help="Install the latest main commit; stop the app first")
+    subs.add_parser("update", help="Queue the latest newer verified application release")
     for command in ("validate", "export-consensus"):
         sub = subs.add_parser(command)
         sub.add_argument("--input", required=True, type=Path)

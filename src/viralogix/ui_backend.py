@@ -1,13 +1,13 @@
 """Presentation adapters for registry and external pipeline management."""
 import os
 import psutil
-from . import __version__
+from . import __version__, updates
 from .samples import register
 from .pipelines import installation, task_snapshot, handle_pipeline
 
 def snapshot(store):
     return {"version": __version__, "home": str(store.home),
-            "flupop": installation(store), "tasks": task_snapshot(store), "samples": store.all("samples"), "cloud_runs": store.all("cloud_runs"), "cpu": os.cpu_count(),
+            "app_update": updates.status(store), "flupop": installation(store), "tasks": task_snapshot(store), "samples": store.all("samples"), "cloud_runs": store.all("cloud_runs"), "cpu": os.cpu_count(),
             "ram_gib": round(psutil.virtual_memory().available / 2**30, 2),
             "desktop": bool(os.environ.get("VIRALOGIX_DESKTOP_SESSION"))}
 
@@ -16,7 +16,11 @@ def handle_request(store, request):
     args = request.get("args") or {}
     try:
         action = request.get("action")
-        if action in {"cloud-demo", "cloud-package", "cloud-open", "flupop-install", "flupop-resume"}:
+        if action=='app-check':
+            response.update(updates.refresh(store))
+        elif action=='app-install':
+            response.update(updates.request_update(store,args.get('release_id'),request.get('id')))
+        elif action in {"cloud-demo", "cloud-package", "cloud-open", "flupop-install", "flupop-resume"}:
             response.update(handle_pipeline(store, action, args, request.get("id")))
         elif action == "register":
             register(store, *(str(args.get(key, "")).strip() for key in ("sample", "r1", "r2", "reference")))

@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
+from types import SimpleNamespace
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 from .store import Store, now
@@ -146,6 +148,15 @@ def execute_run(store,jid,payload):
     finally:store.put('cloud_runs',run['id'],run)
 
 
+@contextmanager
+def environment_lock(exclusive):
+    import fcntl
+    # Shared by all workspaces using this manager environment.
+    with (Path(sys.prefix)/'.virologix-update.lock').open('a') as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+        yield [lock.fileno()]
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--home',required=True);parser.add_argument('--job',required=True)
     args=parser.parse_args();store=Store(args.home);job=store.job(args.job)
@@ -154,9 +165,15 @@ def main():
         changed=db.execute("UPDATE jobs SET status='running',started=? WHERE id=? AND status='queued'",(now(),args.job)).rowcount
     if not changed:return
     try:
-        if job['kind']=='flupop_install':install(store,args.job)
-        elif job['kind']=='flupop_run':execute_run(store,args.job,job['payload'])
-        else:raise ValueError('Unknown pipeline job.')
+        with environment_lock(job['kind']=='app_update') as lock_fds:
+            if job['kind']=='app_update':
+                from .updates import install_update
+                context=SimpleNamespace(store=store,job=job,log=sys.stdout,lock_fds=lock_fds,
+                                        write=lambda message: print(message,flush=True))
+                install_update(context)
+            elif job['kind']=='flupop_install':install(store,args.job)
+            elif job['kind']=='flupop_run':execute_run(store,args.job,job['payload'])
+            else:raise ValueError('Unknown pipeline job.')
         status,error='succeeded',None
     except Exception as exc:
         import traceback;traceback.print_exc()

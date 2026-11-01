@@ -19,7 +19,11 @@ def test_workspace(tmp_path):
         port = sock.getsockname()[1]
     from viralogix.store import Store
     from test_pipeline_manager import attached
-    attached(Store(tmp_path / 'workspace'))
+    store=Store(tmp_path / 'workspace')
+    attached(store)
+    from test_updates import release
+    from viralogix.updates import release_record
+    store.put('app_catalog','releases',{'checked_at':'TEST FIXTURE','releases':[release_record(release())]})
     env = {**os.environ, 'VIRALOGIX_HOME': str(tmp_path / 'workspace')}
     log = (tmp_path / 'server.log').open('w')
     proc = subprocess.Popen([sys.executable, '-m', 'streamlit', 'run', str(repo/'src/viralogix/app.py'), '--server.port', str(port), '--server.address', '127.0.0.1', '--server.headless', 'true', '--browser.gatherUsageStats', 'false'], env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -71,10 +75,15 @@ def test_workspace(tmp_path):
             nav.get_by_role('link',name='Setup',exact=True).click()
             expect(page.get_by_text('viromics (standard installer environment)')).to_be_visible()
             page.get_by_role('button',name='Releases & updates').click()
-            expect(page.get_by_role('dialog')).to_be_visible()
+            expect(page.get_by_role('heading',name='Updates',exact=True)).to_be_visible()
+            expect(page.get_by_role('button',name='Check for updates',exact=True)).to_be_visible()
+            expect(page.get_by_role('button',name='Install v99.0.0a1',exact=True)).to_be_enabled()
+            page.get_by_label('Release channel',exact=True).select_option('stable')
+            expect(page.get_by_text('No releases in this channel.',exact=True)).to_be_visible()
+            page.get_by_label('Release channel',exact=True).select_option('all')
+            expect(page.get_by_role('button',name='Install v99.0.0a1',exact=True)).to_be_enabled()
+            page.screenshot(path=str(artifacts/'updates-desktop.png'),full_page=True)
             expect(page.get_by_role('link',name='Open releases')).to_have_attribute('href','https://github.com/crackberryq/Virologix/releases')
-            page.keyboard.press('Escape')
-            expect(page.get_by_role('dialog')).to_have_count(0)
             page.set_viewport_size({'width':390,'height':844})
             page.get_by_role('button',name='Open navigation',exact=True).click()
             nav.get_by_role('link',name='Overview',exact=True).click()

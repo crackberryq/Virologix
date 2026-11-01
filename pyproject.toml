@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viralogix"
-version = "0.1.0a8"
+version = "0.1.0a9"
 description = "Local manager for independent virology pipelines"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Jimi Goldstein"}]
-dependencies = ["streamlit==1.66.1", "platformdirs>=4,<5", "psutil>=6,<8"]
+dependencies = ["streamlit==1.66.1", "platformdirs>=4,<5", "psutil>=6,<8", "packaging>=24,<27"]
 
 [project.scripts]
 viralogix = "viralogix.cli:main"

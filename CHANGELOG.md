@@ -1,3 +1,11 @@
+# 0.1.0a9 — In-app application updates
+
+- Adds a Bactologix-style Updates screen with running/installed versions, release channels, selectable releases, release notes and progress logs.
+- Installs only published Virologix wheels with verified size, SHA-256, identity and Python compatibility; revalidates the selected release before pip runs.
+- Prevents application updates during active tasks and coordinates workers with a manager-environment lock.
+- Uses the existing verified launcher restart handoff and browser reconnection watcher; direct Streamlit sessions receive manual restart guidance.
+- Keeps FluPop update / repair separate from application updates.
+
 # 0.1.0a8 — Independent FluPop management
 
 - Adds Install / Update / repair FluPop using its own repository and isolated versioned environment.

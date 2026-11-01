@@ -34,8 +34,8 @@ def enqueue(store,kind,payload,request_id):
         if request_id:
             previous=db.execute("SELECT id FROM jobs WHERE json_extract(payload,'$.request_id')=?",(request_id,)).fetchone()
             if previous:return previous[0]
-        if db.execute("SELECT 1 FROM jobs WHERE kind LIKE 'flupop_%' AND status IN ('queued','running')").fetchone():
-            raise ValueError('A FluPop task is already active. Wait for it to finish before starting another.')
+        if db.execute("SELECT 1 FROM jobs WHERE status IN ('queued','running')").fetchone():
+            raise ValueError('A task is already active. Wait for it to finish before starting another.')
         db.execute('INSERT INTO jobs(id,kind,payload,status,created) VALUES(?,?,?,?,?)',
                    (jid,kind,json.dumps(payload),'queued',now()))
     try:
@@ -58,6 +58,8 @@ def installation(store):
 
 
 def queue_run(store,args,request_id,demo=False):
+    from .updates import assert_current
+    assert_current(store)
     installed=installation(store)
     if not installed['ready']:raise ValueError('Install FluPop from Pipelines before starting a run.')
     sample='DEMO' if demo else args.get('sample','')
@@ -75,7 +77,7 @@ def queue_run(store,args,request_id,demo=False):
 def task_snapshot(store):
     tasks=[]
     for j in store.jobs():
-        if not j['kind'].startswith('flupop_'):continue
+        if not (j['kind'].startswith('flupop_') or j['kind']=='app_update'):continue
         path=store.home/'logs'/f'{j["id"]}.log'
         tail=''
         if path.is_file():
@@ -107,6 +109,9 @@ def open_result(store,run_id):
 
 
 def handle_pipeline(store,action,args,request_id):
+    if action!='cloud-open':
+        from .updates import assert_current
+        assert_current(store)
     if action=='flupop-install':
         jid=enqueue(store,'flupop_install',{},request_id)
         return {'message':'FluPop installation started in its own environment. See progress below.','job_id':jid}
