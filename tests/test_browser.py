@@ -60,9 +60,21 @@ def test_workspace(tmp_path):
             assert Path(downloaded.value.path()).read_text() == '>VG000001 sample=DEMO|segment=SEGMENT_A\nATGCTACGAT\n'
             page.locator('details.v-result summary').click()
             page.screenshot(path=str(artifacts/'inspection-desktop.png'), full_page=True)
-            for name in ['Pipelines','Runs','Databases & resources']:
+            for name in ['Databases & resources']:
                 nav.get_by_role('link',name=name,exact=True).click()
                 expect(page.get_by_role('heading',name='Ready for integration')).to_be_visible()
+            nav.get_by_role('link',name='Pipelines',exact=True).click()
+            page.get_by_role('button',name='Run synthetic demo',exact=True).click()
+            expect(page.get_by_role('heading',name='Viral Cloud report',exact=True)).to_be_visible()
+            expect(page.frame_locator('#cloud-report').get_by_role('heading',name='Viral Cloud',exact=True)).to_be_visible()
+            with page.expect_download() as cloud_download:
+                page.get_by_role('button',name='Download report bundle',exact=True).click()
+            from zipfile import ZipFile
+            with ZipFile(cloud_download.value.path()) as archive:
+                assert 'population.cfasta' in archive.namelist()
+            nav.get_by_role('link',name='Runs',exact=True).click()
+            page.get_by_role('button',name='Open report',exact=True).click()
+            expect(page.get_by_text('Viral Cloud report saved locally.')).to_be_visible()
             nav.get_by_role('link',name='Setup',exact=True).click()
             expect(page.get_by_text('viromics (standard installer environment)')).to_be_visible()
             page.get_by_role('button',name='Releases & updates').click()

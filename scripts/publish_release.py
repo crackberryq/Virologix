@@ -37,7 +37,7 @@ def main():
     if release and release['target_commitish'] != commit: raise ValueError('Draft belongs to another commit')
     if not release:
         notes=Path('CHANGELOG.md').read_text()
-        release=api(base,'POST',{'tag_name':tag,'target_commitish':commit,'name':'Viralogix '+tag,'body':notes,'draft':True,'prerelease':True})
+        release=api(base,'POST',{'tag_name':tag,'target_commitish':commit,'name':'Virologix '+tag,'body':notes,'draft':True,'prerelease':True})
     for p in files:
         old=next((a for a in release.get('assets',[]) if a['name']==p.name),None)
         if old:

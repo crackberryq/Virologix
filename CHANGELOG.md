@@ -1,3 +1,11 @@
+# 0.1.0a7 — Viral Cloud testing preview
+
+- Adds Viral Cloud to Pipelines with a one-click synthetic demo and local consensus FASTA, reviewed haplotype TSV and optional evidence JSON selection.
+- Creates cFASTA, consensus FASTA, HTML/JSON reports and checksum manifests; complete results download as a ZIP.
+- Saves report history under Runs and reopens results across application restarts.
+- Bundles the packager with Virologix in the existing viromics environment; no additional pipeline installation is required.
+- This preview reports supplied records only. Raw-read reconstruction and biological evidence validation are not implemented.
+
 ## 0.1.0a6 — Shared workspace design
 
 - Align the Virologix interface with Bactologix: navigation, cards, tables, spacing, responsive drawer and workspace tools, with blue V branding and Human Link GenoMix identity.

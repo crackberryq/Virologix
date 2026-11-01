@@ -11,7 +11,7 @@ MAX_PREVIEW_BYTES = 10 * 1024 * 1024
 
 def snapshot(store):
     return {"version": __version__, "home": str(store.home),
-            "samples": store.all("samples"), "cpu": os.cpu_count(),
+            "samples": store.all("samples"), "cloud_runs": store.all("cloud_runs"), "cpu": os.cpu_count(),
             "ram_gib": round(psutil.virtual_memory().available / 2**30, 2),
             "desktop": bool(os.environ.get("VIRALOGIX_DESKTOP_SESSION"))}
 
@@ -20,7 +20,10 @@ def handle_request(store, request):
     args = request.get("args") or {}
     try:
         action = request.get("action")
-        if action == "register":
+        if action in {"cloud-demo", "cloud-package", "cloud-open"}:
+            from .cloud import handle_cloud
+            response.update(handle_cloud(store, action, args))
+        elif action == "register":
             register(store, *(str(args.get(key, "")).strip() for key in ("sample", "r1", "r2", "reference")))
             response["message"] = "Sample registered. Input files remain in their original locations."
         elif action == "inspect":
@@ -38,6 +41,6 @@ def handle_request(store, request):
         elif action != "refresh":
             raise ValueError("Unknown workspace action.")
         response["ok"] = True
-    except (ValueError, UnicodeError, OSError) as exc:
+    except (ValueError, UnicodeError, OSError, TypeError, KeyError) as exc:
         response.update(ok=False, message=str(exc))
     return response
