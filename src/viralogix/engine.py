@@ -181,7 +181,7 @@ def controller_key(tool, content):
 
 def check_controller(ctx, conda, prefix, tool, requirements):
     if tool=='flupop':
-        ctx.command([str(Path(prefix)/'bin/python'),'-c',controller_check_code(tool,requirements)+'; import flupop'])
+        ctx.command([str(Path(prefix)/'bin/python'),'-c',controller_check_code(tool,requirements)+'\nimport flupop\n'])
         ctx.command([str(Path(prefix)/'bin/python'),'-m','pip','check'])
         return
     if not conda or not prefix:

@@ -68,7 +68,7 @@ def review(store, text, registrations=None):
             else:
                 seen[sid.casefold()] = row
             if mode not in MODES:
-                row['errors'].append('Read mode must be hybrid, ont_only or illumina_only.')
+                row['errors'].append('Input mode must be supplied_records (or a supported legacy read mode).')
             try:
                 path = absolute_path(raw_path)
                 row['path'] = str(path)

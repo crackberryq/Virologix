@@ -14,6 +14,10 @@ with tempfile.TemporaryDirectory(prefix='virologix-install-') as tmp:
         job=store.claim();assert job['id']==jid
         ctx=Context(store,job)
         try:execute(ctx)
+        except BaseException:
+            ctx.log.flush()
+            print(store.log_path(jid).read_text(),flush=True)
+            raise
         finally:ctx.log.close()
         store.update_job(jid,status='succeeded')
     version=versions(store,'flupop')['versions'][0]

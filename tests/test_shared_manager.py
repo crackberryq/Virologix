@@ -79,3 +79,14 @@ def test_legacy_migration_is_idempotent(workspace):
     migration.migrate(store);migration.migrate(store)
     assert len(store.all('runs'))==2
     assert store.get('cloud_runs','old-draft') and store.get('legacy_migrations','old-draft')
+
+
+def test_actual_runner_verification_command(workspace):
+    from viralogix.engine import Context, check_controller
+    store,run=workspace
+    item=store.get('installs',run['installation'])
+    jid=store.submit('check',{'installation':item['id']})
+    ctx=Context(store,store.job(jid))
+    try:check_controller(ctx,None,item['controller'],'flupop',item['controller_requirements'])
+    finally:ctx.log.close()
+    assert 'No broken requirements found' in store.log_path(jid).read_text()
