@@ -128,3 +128,19 @@ def test_conda_discovery_matches_desktop_installer(tmp_path,monkeypatch):
     conda=tmp_path/'.local/share/viralogix/conda/bin/conda'
     conda.parent.mkdir(parents=True);conda.write_text('#!/bin/sh\n');conda.chmod(0o755)
     assert worker.find_conda()==str(conda)
+
+
+def test_download_does_not_receive_api_token(monkeypatch):
+    from viralogix import pipeline_worker as worker
+    monkeypatch.setenv('GH_TOKEN','test-only-placeholder')
+    seen=[]
+    class Response:
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def read(self,n):return b'{}'
+    def open_(request,timeout):seen.append(request);return Response()
+    monkeypatch.setattr(worker,'urlopen',open_)
+    worker.fetch('https://api.github.com/repos/crackberryq/Viromics_FluPop/commits/main')
+    worker.fetch('https://codeload.github.com/crackberryq/Viromics_FluPop/zip/'+'a'*40)
+    assert seen[0].get_header('Authorization')=='Bearer test-only-placeholder'
+    assert seen[1].get_header('Authorization') is None

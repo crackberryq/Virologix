@@ -16,7 +16,12 @@ from .pipelines import REPOSITORY, REPORT_FILES
 
 
 def fetch(url):
-    with urlopen(Request(url,headers={'User-Agent':'Virologix','Accept':'application/vnd.github+json'}),timeout=120) as response:
+    headers={'User-Agent':'Virologix','Accept':'application/vnd.github+json'}
+    request=Request(url,headers=headers)
+    # Optional CI/API authentication is not forwarded on redirects or downloads.
+    if url.startswith('https://api.github.com/repos/'+REPOSITORY+'/') and os.environ.get('GH_TOKEN'):
+        request.add_unredirected_header('Authorization','Bearer '+os.environ['GH_TOKEN'])
+    with urlopen(request,timeout=120) as response:
         data=response.read(100*1024*1024+1)
     if len(data)>100*1024*1024:raise ValueError('Source download exceeds 100 MiB.')
     return data
