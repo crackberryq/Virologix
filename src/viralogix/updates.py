@@ -77,7 +77,7 @@ def fetch_releases():
 
 def status(store):
     state = store.get("settings", "app-update", {})
-    queue_paused = False
+    queue_paused = store.queue_snapshot()['paused']
     active = next((j for j in store.jobs() if j["kind"] == "app_update" and j["status"] in {"queued", "running"}), None)
     try:
         installed = importlib.metadata.version("viralogix")

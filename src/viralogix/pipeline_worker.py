@@ -151,11 +151,9 @@ def execute_run(store,jid,payload):
 
 @contextmanager
 def environment_lock(exclusive):
-    import fcntl
-    # Shared by all workspaces using this manager environment.
-    with (Path(sys.prefix)/'.virologix-update.lock').open('a') as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
-        yield [lock.fileno()]
+    from .runtime import environment_lock as shared_lock
+    with shared_lock(exclusive) as fd:
+        yield [fd]
 
 
 def main():

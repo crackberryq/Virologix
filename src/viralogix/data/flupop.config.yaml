@@ -1,0 +1,5 @@
+synthetic_demo: false
+inputs:
+  consensus: consensus.fasta
+  haplotypes: haplotypes.tsv
+  evidence: ''

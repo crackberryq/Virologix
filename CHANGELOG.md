@@ -1,3 +1,12 @@
+# 0.1.0a11 — Bactologix manager interface port
+
+- Ports the actual Bactologix v0.1.0a61 interface, layout and manager controls, retaining Virologix blue branding.
+- Includes all ten navigation pages, saved-run tabs and revisions, batch selections, persistent draft editing, queue pause/resume/cancel/retry, logs and resource telemetry.
+- Includes application release selection, pipeline versions, environment checks/install/repair, PC capacity presets, workstation checks, configuration, comparisons, storage and support exports.
+- Connects these controls to the independent FluPop runner, with immutable run configuration, input copies and resource budgets.
+- Retains earlier installations, reports and run records; imports compatible earlier drafts without deleting originals.
+- FluPop-specific options reflect its supplied-record interface. No separate database downloads, biological follow-ups or reusable analysis checkpoints are declared by this pipeline release.
+
 # 0.1.0a10 — Shared manager workflow
 
 - Matches Bactologix sidebar labels, order, icons and WORK / MANAGE groups while retaining Virologix blue branding.

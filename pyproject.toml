@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viralogix"
-version = "0.1.0a10"
+version = "0.1.0a11"
 description = "Local manager for independent virology pipelines"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Jimi Goldstein"}]
-dependencies = ["streamlit==1.66.1", "platformdirs>=4,<5", "psutil>=6,<8", "packaging>=24,<27"]
+dependencies = ["streamlit==1.66.1", "platformdirs>=4,<5", "psutil>=6,<8", "packaging>=24,<27", "PyYAML>=6,<7"]
 
 [project.scripts]
 viralogix = "viralogix.cli:main"
@@ -26,4 +26,4 @@ test = ["pytest>=8,<9"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-viralogix = ["assets/*.svg", "assets/*.png", "assets/*.ico", "ui/*.html", "ui/*.css", "ui/*.js"]
+viralogix = ["assets/*.svg", "assets/*.png", "assets/*.ico", "ui/*.html", "ui/*.css", "ui/*.js", "ui/*.svg", "ui/*.png", "ui/*.ico", "data/*", "data/env_guard/*"]

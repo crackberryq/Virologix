@@ -21,7 +21,7 @@ jobs:
           path: .ci/flupop
       - run: |
           python -m venv .ci/flupop-env
-          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0
+          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0 ./.ci/flupop
           echo "FLUPOP_TEST_SOURCE=$GITHUB_WORKSPACE/.ci/flupop" >> "$GITHUB_ENV"
           echo "FLUPOP_TEST_PYTHON=$GITHUB_WORKSPACE/.ci/flupop-env/bin/python" >> "$GITHUB_ENV"
       - run: python -m pip install -e '.[test]' build
@@ -62,7 +62,7 @@ jobs:
           path: .ci/flupop
       - run: |
           python -m venv .ci/flupop-env
-          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0
+          .ci/flupop-env/bin/python -m pip install snakemake==9.27.0 ./.ci/flupop
           echo "FLUPOP_TEST_SOURCE=$GITHUB_WORKSPACE/.ci/flupop" >> "$GITHUB_ENV"
           echo "FLUPOP_TEST_PYTHON=$GITHUB_WORKSPACE/.ci/flupop-env/bin/python" >> "$GITHUB_ENV"
       - run: python -m pip install -e '.[test]' playwright==1.51.0

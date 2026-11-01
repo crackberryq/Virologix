@@ -1,21 +1,31 @@
-"""Clean Conda install plus external synthetic workflow, run by dedicated CI job."""
+"""Fresh Conda installation through the shared manager and external demo."""
 from pathlib import Path
-import sys
 import tempfile
 from viralogix.store import Store
-from viralogix.pipeline_worker import install, execute_run
-from viralogix.pipelines import open_result
+from viralogix.engine import Context, execute
+from viralogix.catalog import versions
+from viralogix.runs import create_run, register_sample
+from viralogix.results import inspect
 
 with tempfile.TemporaryDirectory(prefix='virologix-install-') as tmp:
     store=Store(Path(tmp)/'workspace')
-    install(store,'clean-install')
-    installed=store.get('pipelines','flupop')
-    assert Path(installed['python']) != Path(sys.executable)
-    assert str(store.home/'envs'/'flupop') in installed['python']
-    execute_run(store,'clean-demo',{'installation':installed,'sample':'DEMO','demo':True})
-    result=open_result(store,'clean-demo')
-    assert result['run']['status']=='succeeded'
-    assert 'SYNTHETIC' in result['html']
-    install(store,'check-current')
-    assert store.get('pipelines','flupop')==installed
-    print('Clean isolated installation, demo, report and current-version check passed.')
+    def run_job(kind,payload):
+        jid=store.submit(kind,payload)
+        job=store.claim();assert job['id']==jid
+        ctx=Context(store,job)
+        try:execute(ctx)
+        finally:ctx.log.close()
+        store.update_job(jid,status='succeeded')
+    version=versions(store,'flupop')['versions'][0]
+    run_job('install',{'tool':'flupop','version':version})
+    item=store.get('installs',store.get('settings','active-flupop'))
+    assert item['ready'] and Path(item['controller']).is_relative_to(store.home/'controllers')
+    sample=register_sample(store,'DEMO',str(Path(item['source'])/'examples'))
+    run=create_run(store,'flupop',sample,'synthetic_demo: true\n',1,1024)
+    for action in ('dry-run','check-environments','run'):
+        run_job('workflow',{'run_id':run['id'],'action':action})
+    result=inspect(store,run['id'])
+    assert result['status']=='completed' and result['reports'][0]['state']=='available'
+    assert 'SYNTHETIC' in Path(result['reports'][0]['path']).read_text()
+    run_job('check',{'installation':item['id']})
+    print('Shared-manager fresh installation, validation, runner check, execution and report passed.')

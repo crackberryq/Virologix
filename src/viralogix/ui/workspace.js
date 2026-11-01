@@ -1,225 +1,1003 @@
 export default function(component) {
-  const {parentElement, data, setTriggerValue} = component;
-  const root = parentElement.querySelector('.bacto-root');
-  root._dispose?.();
-  const abort = new AbortController();
-  let pollTimer;
-  root._dispose = () => {abort.abort();clearTimeout(pollTimer);};
-  const on = (target, event, callback) => target.addEventListener(event, callback, {signal:abort.signal});
-  const $ = selector => root.querySelector(selector);
-  const U = root._virologixState ||= {view:'overview', filter:'', draft:{}, pending:null, responseId:null, inspection:null, filename:'', notice:null};
-  const S = data.workspace;
-  const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const paths = {overview:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',samples:'M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5',cfasta:'M8 3H5v18h14V7l-4-4H8 M14 3v5h5 M8 12h8 M8 16h5',pipelines:'M4 4h5v5H4z M15 15h5v5h-5z M6 9v8h9 M9 6h8v9',runs:'M8 5l11 7-11 7z',setup:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',resources:'M3 5h18v14H3z M3 10h18 M7 14h3',updates:'M12 3v12 M7 10l5 5 5-5 M4 16v5h16v-5',arrow:'M5 12h14 M14 7l5 5-5 5'};
-  const sharedIcons={home:'M3 10 12 3l9 7M5 9v12h14V9M9 21v-7h6v7',samples:'M5 3h14v18H5zM9 8h6M9 12h6M9 16h4',install:'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',resources:'M4 6c0-4 16-4 16 0s-16 4-16 0m0 0v12c0 4 16 4 16 0V6M4 12c0 4 16 4 16 0',config:'M4 7h16M4 17h16M8 4v6m8 4v6',jobs:'M8 5h12v16H4V5h4m0-2h8v4H8zM8 12h8m-8 4h5',compare:'M5 20V10m7 10V4m7 16v-7M3 21h18',plus:'M12 5v14M5 12h14',arrow:'M5 12h14m-5-5 5 5-5 5',clone:'M8 8h12v12H8zM4 16H3V3h13v1',check:'m5 12 4 4 10-10',clock:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 4v5l3 2',close:'m6 6 12 12M6 18 18 6',external:'M14 3h7v7m0-7-11 11M10 5H4v15h15v-6',play:'m8 4 12 8-12 8z',stop:'M6 6h12v12H6z',info:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 7v6m0-9v.01',chevron:'m9 5 7 7-7 7',folder:'M3 7h7l2-3h9v16H3z',gear:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2',file:'M5 3h9l5 5v13H5zM14 3v6h5M9 13h6m-6 4h6',cpu:'M7 7h10v10H7zM9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3',branch:'M6 3v14a4 4 0 0 0 4 4m-4-9h8a4 4 0 0 0 4-4V3',trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',download:'M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3'};
-  Object.assign(paths,{overview:sharedIcons.home,runs:sharedIcons.play,comparisons:sharedIcons.compare,jobs:sharedIcons.jobs,reports:sharedIcons.file,install:sharedIcons.install,resources:sharedIcons.resources,configure:sharedIcons.config,storage:sharedIcons.folder});
-  const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.arrow}"/></svg>`;
-  const button = (text, view, primary=false) => `<button class="btn ${primary?'primary':''}" data-nav="${view}">${text}${icon('arrow')}</button>`;
-  const pill = (text, tone='blue') => `<span class="pill ${tone}">${e(text)}</span>`;
-  const heading = (title, subtitle, action='') => `<div class="page-heading"><div><div class="eyebrow">VIROLOGY WORKSPACE</div><h1>${title}</h1><p class="subtitle">${subtitle}</p></div>${action}</div>`;
-  const card = (title, subtitle, body) => `<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${subtitle}</p></div></div><div class="card-body">${body}</div></section>`;
-  const names={overview:'Overview',samples:'Samples',runs:'Runs',comparisons:'Comparisons',jobs:'Jobs & progress',reports:'Results & reports',install:'Install & update',resources:'Databases & models',configure:'Configuration',storage:'Storage'};
-  const editorKey='virologix:run-editor:v1:'+S.home;
-  if(!U.restored){try{U.editor=JSON.parse(sessionStorage.getItem(editorKey)||'null');}catch(_){}U.restored=true;}
-  function persist(){try{if(U.editor)sessionStorage.setItem(editorKey,JSON.stringify(U.editor));else sessionStorage.removeItem(editorKey);}catch(_){}}
-  function route(){const bits=location.hash.slice(1).split('/');U.view=names[bits[0]]?bits[0]:'overview';U.runId=bits[0]==='runs'?bits[1]:null;}
-  function navigate(view){persist();location.hash=view;route();U.notice=null;drawer(false);render();$('#main').focus({preventScroll:true});}
-  route();on(window,'hashchange',()=>{route();render();});
-  const action=(name,text,id='',disabled=false)=>`<button class="btn" data-action="${name}" data-run="${e(id)}" ${disabled||U.pending?'disabled':''}>${text}</button>`;
-  const status=r=>r.status==='succeeded'?'Completed':r.status||'Legacy report';
-  const active=()=>S.tasks.filter(t=>['queued','running'].includes(t.status));
-  const current=()=>S.cloud_runs.filter(r=>!r.archived);
-  function beginDraft(sample='',demo=false,run=null){U.editor=run?{...run.input_paths,label:run.label||run.sample,sample:run.sample,demo:run.synthetic_demo,run_id:run.status==='draft'?run.id:null}:{sample,demo,label:demo?'Synthetic demo':'',consensus:'',haplotypes:'',evidence:''};persist();navigate('runs/editor');}
-  function send(action,args={}) {
-    if (U.pending) return;
-    U.pending=action; U.notice=null;
-    setTriggerValue('action',{id:crypto.randomUUID(),action,args});
-    render();
-  }
-  const response=data.response;
-  if(response && response.id!==U.responseId){
-    U.responseId=response.id;U.pending=null;
-    U.notice=response.message?{ok:response.ok,text:response.message}:null;
-    if(response.action==='cloud-open' && response.ok) U.cloud=response;
-    if(response.action==='browse' && response.ok)U.browser=response;
-    if(response.job_id && response.ok && !['flupop-install','app-install'].includes(response.action)){U.waitingJob=response.job_id;U.cloud=null;}
+"use strict";
+const {parentElement, data, setTriggerValue} = component;
+const root = parentElement.querySelector(".bacto-root");
+root._dispose?.();
+const icons={home:'M3 10 12 3l9 7M5 9v12h14V9M9 21v-7h6v7',samples:'M5 3h14v18H5zM9 8h6M9 12h6M9 16h4',install:'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',resources:'M4 6c0-4 16-4 16 0s-16 4-16 0m0 0v12c0 4 16 4 16 0V6M4 12c0 4 16 4 16 0',config:'M4 7h16M4 17h16M8 4v6m8 4v6',jobs:'M8 5h12v16H4V5h4m0-2h8v4H8zM8 12h8m-8 4h5',compare:'M5 20V10m7 10V4m7 16v-7M3 21h18',plus:'M12 5v14M5 12h14',arrow:'M5 12h14m-5-5 5 5-5 5',clone:'M8 8h12v12H8zM4 16H3V3h13v1',check:'m5 12 4 4 10-10',clock:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 4v5l3 2',close:'m6 6 12 12M6 18 18 6',external:'M14 3h7v7m0-7-11 11M10 5H4v15h15v-6',play:'m8 4 12 8-12 8z',stop:'M6 6h12v12H6z',info:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 7v6m0-9v.01',chevron:'m9 5 7 7-7 7',folder:'M3 7h7l2-3h9v16H3z',gear:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2',file:'M5 3h9l5 5v13H5zM14 3v6h5M9 13h6m-6 4h6',cpu:'M7 7h10v10H7zM9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3',branch:'M6 3v14a4 4 0 0 0 4 4m-4-9h8a4 4 0 0 0 4-4V3',trash:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',download:'M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3'};
+const icon=n=>`<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${icons[n]||icons.file}"/></svg>`;
 
-    if(['register','sample-add'].includes(response.action) && response.ok){U.draft={};U.addSample=false;}
-    if(response.action==='run-save' && response.ok){U.editor=null;persist();location.hash='runs/'+response.run_id;route();}
-    if(response.action==='cloud-open' && response.ok){location.hash='reports';route();}
-  }
-  function sampleTable(samples){
-    if(!samples.length)return '<div class="empty"><h3>No samples to display</h3><p>Start with a sample folder. Use Add sample to register its location.</p></div>';
-    return `<div class="table-wrap"><table><thead><tr><th>Sample</th><th>Input folder</th><th>Runs</th><th>Actions</th></tr></thead><tbody>${samples.map(r=>`<tr><td><strong>${e(r.id)}</strong></td><td class="v-path">${e(r.path||r.r1)}</td><td>${current().filter(x=>x.sample===r.id).length}</td><td>${action('sample-draft','Create draft',r.id)} ${action('sample-runs','View runs',r.id)}</td></tr>`).join('')}</tbody></table></div>`;
-  }
-  function overview(){
-    const next=!S.flupop.ready?button('Install pipelines','install',true):!S.samples.length?button('Add samples','samples',true):button('Create run drafts','runs',true);
-    return heading('Pick up where you left off.','Samples, saved runs, jobs and reports in one workspace.',next)+
-      `<div class="stats-grid overview-stats">${[['Samples',S.samples.length],['Runs',current().length],['Active jobs',active().length],['Reports',S.cloud_runs.filter(r=>!r.status||r.status==='succeeded').length]].map(([label,n])=>`<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${n}</div></div>`).join('')}</div>`+
-      card('Next step','Add samples → create run drafts → run → review results.',`<p>${!S.flupop.ready?'Install FluPop in Install & update.':'Choose a registered sample and save its run configuration before starting a job.'}</p><div class="button-row">${next}${action('demo-draft','Create synthetic demo draft')}</div>`)+
-      (U.editor?card('Unfinished draft','Your editor is saved in this browser.',button('Continue editing','runs/editor')):'')+
-      card('Recent runs','Each run keeps its own settings and outputs.',runTable(current().slice(0,5)));
-  }
-  function samples(){
-    const field=(key,label)=>`<div class="field wide"><label for="${key}">${label}</label><input id="${key}" name="${key}" value="${e(U.draft[key]||'')}" required></div>`;
-    return heading('Samples','Register a sample folder, then create its run drafts.',U.addSample?'':action('new-sample','Add sample'))+
-      (U.addSample?card('Add sample','Use a Linux / WSL folder or a Windows drive path.',`<form id="sample-form" class="v-form"><div class="form-grid">${field('sample','Sample ID')}${field('path','Sample folder')}<button type="button" class="btn" data-action="browse-folder" data-field="path">Browse folders</button></div><button class="btn primary" type="submit" ${U.pending?'disabled':''}>Add sample</button></form>`):'')+
-      `<div class="toolbar"><h2>Registered samples (${S.samples.length})</h2><input class="search" id="sample-search" type="search" aria-label="Search samples" placeholder="Sample ID or folder…" value="${e(U.filter)}"></div><section class="card" id="sample-results">${sampleTable(S.samples.filter(r=>(r.id+' '+(r.path||'')).toLowerCase().includes(U.filter.toLowerCase())))}</section>`;
-  }
-  function cloudResult(){
-    if(!U.cloud)return '';
-    return card('Viral Cloud report',`${U.cloud.run.synthetic_demo?'Synthetic demo · ':''}Saved run: ${e(U.cloud.run.id)}`,`<div class="button-row"><button class="btn primary" data-action="cloud-download">Download report bundle</button></div><p class="v-note">${e(U.cloud.run.path)}</p><iframe id="cloud-report" title="Viral Cloud report" sandbox="" style="width:100%;height:850px;border:0" srcdoc="${e(U.cloud.html)}"></iframe>`);
-  }
-  function taskCards(kinds=null){
-    return S.tasks.filter(t=>!kinds||kinds.includes(t.kind)).map(t=>`<details class="card v-result" ${['queued','running','failed'].includes(t.status)?'open':''}><summary>${t.kind==='app_update'?'Virologix update':t.kind==='flupop_install'?'FluPop installation':'FluPop run'} · ${e(t.status)}</summary><div class="card-body"><p>${e(t.error||t.id)}</p><pre class="code-block">${e(t.log||'Waiting for worker…')}</pre></div></details>`).join('');
-  }
-  function runTable(rows){
-    if(!rows.length)return '<div class="empty"><h3>No saved runs</h3><p>Create a draft from Samples or use Create run drafts.</p></div>';
-    return `<div class="table-wrap"><table><thead><tr><th>Saved run</th><th>Sample</th><th>Pipeline</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${e(r.label||r.sample)}</strong><span class="secondary-line">${e(r.id)}</span></td><td>${e(r.sample)}</td><td>FluPop</td><td>${pill(status(r))}</td><td>${button('Open run','runs/'+r.id)} ${action(r.archived?'restore-run':'archive-run',r.archived?'Restore':'Archive',r.id,['queued','running'].includes(r.status))}</td></tr>`).join('')}</tbody></table></div>`;
-  }
-  function editor(){
-    const d=U.editor;if(!d)return heading('Create run drafts','Choose a sample or create a synthetic demo draft.')+button('Choose samples','samples');
-    const field=(key,label,required=false)=>`<div class="field wide"><label for="edit-${key}">${label}</label><input id="edit-${key}" name="${key}" value="${e(d[key]||'')}" ${required?'required':''}>${key==='label'?'':`<button type="button" class="btn" data-action="browse-input" data-field="${key}">Browse files</button>`}</div>`;
-    return heading(d.run_id?'Edit saved draft':'Create run drafts','Saving a draft does not start a job.',button('Back to runs','runs'))+
-      card('FluPop configuration','Independent Snakemake pipeline · supplied-record reports',`<form id="run-form" class="v-form"><div class="form-grid">${field('label','Run name',true)}<div class="field"><label for="edit-sample">Sample</label>${d.demo?'<p>DEMO · Synthetic inputs</p>':`<select id="edit-sample" name="sample" required><option value="">Choose a sample</option>${S.samples.map(r=>`<option value="${e(r.id)}" ${r.id===d.sample?'selected':''}>${e(r.id)}</option>`).join('')}</select>`}</div><div class="field"><label>Pipeline</label><p>FluPop</p></div>${d.demo?'':field('consensus','Consensus FASTA path',true)+field('haplotypes','Reviewed haplotypes TSV path',true)+field('evidence','Evidence JSON path (optional)')}</div><p class="v-note">${d.demo?'Uses the installed pipeline’s synthetic fixture.':'Inputs stay in their original locations. Each run receives its own input snapshot when started.'}</p><div class="button-row"><button class="btn primary" type="submit" ${U.pending?'disabled':''}>Save draft</button>${action('discard-editor','Discard unsaved edits')}</div></form>`);
-  }
-  function runDetail(r){
-    if(!r)return heading('Run not found','Return to the saved runs list.')+button('Back to runs','runs');
-    const busy=active().length>0;
-    return heading(e(r.label||r.sample),'Saved configuration, activity and outputs.',button('Back to runs','runs'))+
-      card('Run configuration',`${e(r.id)} · FluPop`, `<dl class="detail-list"><dt>Status</dt><dd>${e(status(r))}</dd><dt>Sample</dt><dd>${e(r.sample)}</dd><dt>Inputs</dt><dd class="v-path">${r.synthetic_demo?'Synthetic demo':Object.entries(r.input_paths||{}).filter(([,v])=>v).map(([k,v])=>e(k)+': '+e(v)).join('<br>')||'Saved with the original run'}</dd><dt>Source revision</dt><dd>${e(r.installation?.revision||'Recorded when started')}</dd><dt>Output folder</dt><dd class="v-path">${e(r.path||'Created when started')}</dd></dl><div class="button-row">${r.archived?action('restore-run','Restore',r.id):r.status==='draft'?action('edit-run','Edit draft',r.id)+action('run-start','Run / resume',r.id,busy||!S.flupop.ready):r.status==='failed'?action('flupop-resume','Run / resume',r.id,busy):''}${r.input_paths||r.synthetic_demo?action('clone-run','Create new draft',r.id):''}${!r.status||r.status==='succeeded'?action('cloud-open','View results',r.id):''}${button('Jobs & progress','jobs')}</div>${!S.flupop.ready?'<p>Install FluPop in Install & update before starting.</p>':''}${r.error?`<div class="notice amber">${e(r.error)}</div>`:''}`);
-  }
-  function runs(){
-    if(U.runId==='editor')return editor();
-    if(U.runId)return runDetail(S.cloud_runs.find(r=>r.id===U.runId));
-    const rows=S.cloud_runs.filter(r=>!!r.archived===!!U.archived&&(!U.sampleFilter||r.sample===U.sampleFilter)&&(!U.runStatus||r.status===U.runStatus)&&`${r.label} ${r.sample} ${r.id}`.toLowerCase().includes((U.runSearch||'').toLowerCase()));
-    return heading('Drafts, activity and history.','Each run keeps its own configuration, input references and outputs.',action('new-run','Create run drafts'))+
-      (U.editor?card('Unfinished draft','Continue where you left off.',button('Continue editing','runs/editor')):'')+
-      `<div class="toolbar"><div class="button-row">${action('current-runs','Current runs')}${action('archived-runs','Archived')}${action('reset-runs','Reset filters')}</div><input id="run-search" class="search" aria-label="Search runs" placeholder="Sample, name or run ID…" value="${e(U.runSearch||'')}"><select id="run-status" aria-label="Run status"><option value="">All statuses</option>${['draft','queued','running','failed','succeeded'].map(x=>`<option value="${x}" ${U.runStatus===x?'selected':''}>${x==='succeeded'?'Completed':x}</option>`).join('')}</select></div>${U.sampleFilter?`<p>Runs for ${e(U.sampleFilter)}</p>`:''}<section class="card" id="run-results">${runTable(rows)}</section><p class="v-note">${U.archived?'Restore a run to use it again.':'Archive hides inactive runs.'} Files, configurations and reports are kept.</p>`;
-  }
-  function reports(){return heading('Results & reports','Completed pipeline outputs, including reports saved by earlier versions.')+card('Saved reports','Open or download a completed run.',S.cloud_runs.filter(r=>!r.status||r.status==='succeeded').map(r=>`<div class="pipeline-row"><div class="pipeline-info"><strong>${e(r.label||r.sample)}</strong><small>${e(r.id)}${r.archived?' · Archived':''}</small></div>${action('cloud-open','Open report',r.id)}</div>`).join('')||'<p>No completed reports yet.</p>')+cloudResult();}
-  function jobs(){return heading('Jobs & progress','Follow active jobs and inspect previous logs.')+(taskCards()||card('No jobs yet','Save a run draft before starting it.',button('Open runs','runs')));}
-  function comparisons(){return heading('Comparisons','Review saved run settings.')+card('Saved configurations','Compare sample, status, inputs and source revision; no analysis is performed.',current().map(r=>`<details class="v-result"><summary>${e(r.label||r.sample)} · ${e(status(r))}</summary><pre class="code-block">${e(JSON.stringify({sample:r.sample,pipeline:r.pipeline,inputs:r.input_paths,synthetic_demo:r.synthetic_demo,revision:r.installation?.revision},null,2))}</pre>${button('Open run','runs/'+r.id)}</details>`).join('')||'<p>No saved runs yet.</p>');}
-  function resources(){return heading('Databases & models','Resources required by installed pipelines.')+card('FluPop','No external databases or models required for the current supplied-record workflow.','<p>Resource installation controls will appear when a pipeline declares supported resources.</p>');}
-  function storage(){return heading('Storage','Workspace locations and retained files.')+card('Local storage','Archiving a run keeps its files and reports.',`<dl class="detail-list">${['runs','logs','sources','envs','resources'].map(k=>`<dt>${e(k)}</dt><dd class="v-path">${e(S.home+'/'+k)}</dd>`).join('')}</dl>`);}
-  function updates(){
-    const u=S.app_update, catalog=u.catalog, channel=U.updateChannel||'all';
-    const releases=(catalog?.releases||[]).filter(r=>channel!=='stable'||!r.prerelease);
-    const eligible=releases.filter(r=>r.available&&r.newer);
-    if(!eligible.some(r=>String(r.id)===String(U.releaseId)))U.releaseId=eligible[0]?.id;
-    const chosen=eligible.find(r=>String(r.id)===String(U.releaseId));
-    const latest=releases.find(r=>r.available);
-    return heading('Install & update','Manage application releases and independent pipeline installations.')+
-      `<div class="stats-grid"><div class="stat"><div class="stat-label">Running Virologix</div><div class="stat-value label">${e(u.running_version)}</div><div class="stat-foot">Loaded by this window</div></div><div class="stat"><div class="stat-label">Installed package</div><div class="stat-value label">${e(u.installed_version)}</div><div class="stat-foot">${u.restart_required?'Restart required':'Matches this session'}</div></div><div class="stat"><div class="stat-label">Latest checked release</div><div class="stat-value label">${e(latest?.version||'Not checked')}</div><div class="stat-foot">${e(catalog?.checked_at||'Check for available updates')}</div></div></div>`+
-      (u.restart_required?`<div class="notice amber"><p>${u.automatic_restart?'Update installed. Virologix will restart and this page will refresh automatically.':'Restart Virologix to load the installed version. Close the app and reopen its desktop shortcut; for a terminal session, stop it with Ctrl+C and relaunch.'}</p></div>`:'')+
-      card('Virologix application','Updates only the manager environment (viromics).',`<div class="button-row"><button class="btn" data-action="app-check" ${U.pending||u.active_job?'disabled':''}>${U.pending==='app-check'?'Checking…':'Check for updates'}</button><label for="update-channel">Release channel</label><select id="update-channel"><option value="all" ${channel==='all'?'selected':''}>Stable and preview</option><option value="stable" ${channel==='stable'?'selected':''}>Stable only</option></select><a class="btn" href="https://github.com/crackberryq/Virologix/releases" target="_blank" rel="noopener noreferrer">Open releases ↗</a></div><p class="v-note">Downloads are checked against the published size, SHA-256, package identity and Python requirement.</p>${catalog&&!releases.length?'<p>No releases in this channel.</p>':''}${releases.map(r=>`<details class="card v-result"><summary><label><input type="radio" name="update-release" value="${e(r.id)}" ${String(r.id)===String(U.releaseId)?'checked':''} ${!r.available||!r.newer||!u.can_install?'disabled':''}> ${e(r.tag)}</label> ${pill(r.version===u.running_version?'Running':r.older?'Older':r.prerelease?'Preview':'Stable',r.older?'off':'blue')}${!r.available?' · No verified wheel':''}</summary><div class="card-body"><p>${e(r.published_at||'')}</p><pre class="code-block">${e(r.notes||'No release notes provided.')}</pre></div></details>`).join('')}<button class="btn primary v-result" data-action="app-install" ${!chosen||!u.can_install||U.pending?'disabled':''}>${u.active_job?'Updating Virologix…':chosen?'Install '+e(chosen.tag):(catalog?'Up to date in this channel':'Check releases first')}</button><p class="v-note">${u.automatic_restart?'This managed session supports automatic restart.':'After installation, close and reopen Virologix.'} Application updates wait until active tasks finish. Your samples and pipeline installations stay in place.</p>`)+
-      card('FluPop pipeline','Independent source and environment; updating Virologix does not update FluPop.',`<p>${S.flupop.ready?'Installed FluPop '+e(S.flupop.version)+' · '+e(S.flupop.revision.slice(0,12)):'FluPop is not installed.'}</p><div class="button-row"><button class="btn" data-action="flupop-install" ${!u.can_install||U.pending?'disabled':''}>${S.flupop.ready?'Update / repair FluPop':'Install FluPop'}</button>${button('Create run drafts','runs')}</div>`)+taskCards(['app_update','flupop_install']);
-  }
+const e=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>root.querySelector(s), $$=s=>[...root.querySelectorAll(s)];
+const U=root._workspaceState ||= {view:'overview',modal:null,drafts:{},selected:[],tool:'flupop',filter:'',handled:null,pending:null,fields:{}};
+const S=data.workspace;
+const wizardKey='viralogix:run-editor:v1:'+S.workspace;
+const wizardKind=()=>U.view==='draft'?U.wizard?.kind:null;
+const wizardKeys=['wizard','runConfigs','revision','revisionConfig','runConfigTab','runSettingTab','runConfigGroup','runBudgets','runBudgetTool','budgetDefaults'];
+function persistWizard(){
+ if(!U.wizard)return;
+ try{
+  const saved=Object.fromEntries(wizardKeys.map(k=>[k,U[k]]));
+  saved.drafts=Object.fromEntries(Object.entries(U.drafts).filter(([k])=>/^(run-|revision-)/.test(k)));
+  sessionStorage.setItem(wizardKey,JSON.stringify({schema:1,workspace:S.workspace,version:S.version,saved}));U.wizardStorageError=false;
+ }catch{U.wizardStorageError=true;}
+ const status=$('#wizard-save-status');if(status)status.textContent=wizardSaveStatus();
+}
+function wizardSaveStatus(){return U.wizardStorageError?'Browser recovery unavailable — keep this page open.':'Edits saved in this browser tab. No run created yet.';}
+function restoreWizard(){
+ if(U.wizardLoaded)return;U.wizardLoaded=true;
+ try{const text=sessionStorage.getItem(wizardKey);if(!text)return;const record=JSON.parse(text),saved=record.saved;
+  if(record.schema!==1||record.workspace!==S.workspace||!['new-run','edit-run'].includes(saved?.wizard?.kind))return;
+  for(const k of wizardKeys)U[k]=saved[k];Object.assign(U.drafts,saved.drafts||{});U.wizardRecovered=true;
+ }catch{U.wizardStorageError=true;}
+}
+function clearWizard(){
+ $('.run-wizard')?.remove();
+ U.wizard=null;U.wizardRecovered=false;U.revision=null;U.revisionConfig=null;U.runConfigs={};
+ for(const key of Object.keys(U.drafts))if(/^(run-|revision-)/.test(key))delete U.drafts[key];
+ try{sessionStorage.removeItem(wizardKey);}catch{/* No stored recovery data is available. */}
+}
+function openWizard(){U.view='draft';U.modal=null;U.error='';writeRoute();render();$('#main').focus({preventScroll:true});$('.workspace-shell').scrollIntoView({block:'start'});}
+function unfinishedPipeline(){const tool=U.wizard?.kind==='edit-run'?(U.revision||runBy(U.wizard.id))?.tool:val('run-tool','flupop');return S.pipelines[tool]?.name||'pipeline';}
+function wizardBanner(){return U.wizard&&U.view!=='draft'?`<section class="draft-recovery" aria-label="Unfinished draft"><div><strong>Unfinished ${e(unfinishedPipeline())} ${U.wizard.kind==='edit-run'?'revision':'draft'}</strong><p>${e(wizardSaveStatus())}</p></div><div class="button-row">${btn('resume-wizard','Resume editing',true)}${btn('discard-wizard','Discard edits')}</div></section>`:'';}
+function editSavedRun(id,variant=false){
+ if(U.wizard){
+  if(U.wizard.kind==='edit-run'&&U.wizard.id===id&&!!U.wizard.variant===variant){openWizard();return;}
+  draftInputs();persistWizard();modal('editor-conflict',id,{variant});return;
+ }
+ request('edit_run_settings',{id,...(variant?{variant:true}:{})});
+}
+function beforeUnload(event){draftInputs();persistWizard();if(U.wizardStorageError&&U.wizard){event.preventDefault();event.returnValue='';}}
+restoreWizard();
+let pollTimer, toastTimer;
+const navs=[['overview','Overview','home'],['samples','Samples','samples'],['runs','Runs','play'],['comparisons','Comparisons','compare'],['jobs','Jobs & progress','jobs'],['reports','Results & reports','file'],['install','Install & update','install'],['resources','Databases & models','resources'],['configure','Configuration','config'],['storage','Storage','folder']];
+const btn=(action,label,primary=false,id='',ico='',disabled=false)=>`<button type="button" class="btn${primary?' primary':''}" data-action="${action}" data-id="${e(id)}" ${disabled?'disabled':''}>${ico?icon(ico):''}${e(label)}</button>`;
+const quiet=(action,label,id='')=>`<button type="button" class="quiet" data-action="${action}" data-id="${e(id)}">${e(label)} ${icon('arrow')}</button>`;
+const badge=(label,color='')=>`<span class="pill ${color}">${e(label)}</span>`;
+const statusBadge=s=>badge(s,['completed','succeeded','checked','ready'].includes(s)?'green':['running','queued'].includes(s)?'blue':['failed','interrupted'].includes(s)?'red':'');
+const jobStatus=j=>j.status==='queued'&&j.held?badge('Held','amber'):j.status==='queued'&&S.queue?.paused?badge('Queued · paused','amber'):statusBadge(j.status);
+const heading=(eyebrow,title,desc,actions='')=>`<div class="page-heading"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p class="subtitle">${desc}</p></div><div class="button-row">${actions}</div></div>`;
+const empty=(title,desc,action='')=>`<div class="empty">${icon('folder')}<h3>${title}</h3><p>${desc}</p>${action}</div>`;
+const notice=(title,text,amber=false)=>`<div class="notice${amber?' amber':''}">${icon('info')}<div><strong>${title}</strong><p>${text}</p></div></div>`;
+const helpDetails=(title,text)=>`<details class="help-details"><summary>${e(title)}</summary><p>${e(text)}</p></details>`;
+function syncNavigation(){
+ const mobile=window.matchMedia('(max-width:900px)').matches;
+ if(!mobile)U.navOpen=false;
+ root.classList.toggle('nav-open',!!U.navOpen);
+ $('.sidebar').inert=mobile&&!U.navOpen;
+ $('.sidebar').setAttribute('aria-hidden',String(mobile&&!U.navOpen));
+ $('.workspace-shell').inert=mobile&&!!U.navOpen;
+ $('.nav-scrim').hidden=!mobile||!U.navOpen;
+ $('#nav-toggle').setAttribute('aria-expanded',String(!!U.navOpen));
+}
+function closeNavigation(focus=true){U.navOpen=false;syncNavigation();if(focus)$('#nav-toggle').focus();}
+const activeInstall=t=>S.installs.find(i=>i.id===S.active[t]);
+const runBy=id=>S.runs.find(r=>r.id===id);
+const visibleRuns=()=>S.runs.filter(r=>!r.archived);
+U.selected=U.selected.filter(id=>visibleRuns().some(r=>r.id===id));
+const val=(id,fallback='')=>U.drafts[id]??fallback;
+const field=(id,label,value='',type='text',extra='')=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" value="${e(val(id,value))}" ${extra}></div>`;
+const area=(id,label,value='',extra='')=>`<div class="field wide"><label for="${id}">${label}</label><textarea id="${id}" ${extra}>${e(val(id,value))}</textarea></div>`;
+const select=(id,label,options,selected='')=>`<div class="field"><label for="${id}">${label}</label><select id="${id}">${options.map(([v,t])=>`<option value="${e(v)}" ${String(val(id,selected))===String(v)?'selected':''}>${e(t)}</option>`).join('')}</select></div>`;
+function renderToast(){const t=$('#toast'),saved=U.toast;clearTimeout(toastTimer);if(!saved||saved.until<=Date.now()){t.classList.remove('show');U.toast=null;return;}t.textContent=saved.message;t.classList.add('show');t.classList.toggle('toast-error',saved.error);toastTimer=setTimeout(()=>{t.classList.remove('show');U.toast=null;},saved.until-Date.now());}
+function toast(message,error=false){U.toast={message,error,until:Date.now()+6500};renderToast();}
+function download(name,content,type='text/plain'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;root.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);}
+function request(kind,payload={},background=false){if(U.pending){if(!background&&U.background){U.queuedRequest={kind,payload:structuredClone(payload)};renderBusy();}return;}U.background=background;U.requestOrigin={kind,view:U.view,runId:U.runId};U.pending=Array.from(crypto.getRandomValues(new Uint32Array(4)),x=>x.toString(16)).join('-');setTriggerValue('action',{id:U.pending,kind,payload});renderBusy();}
+function renderBusy(){const locked=!!U.queuedRequest||!!U.pending&&!U.background;root.classList.toggle('is-busy',locked);const status=$('#connection-status');if(status)status.textContent=U.pending?'Working…':'Workspace synced';for(const el of $$('input,textarea,select,button[data-action]:not([data-action="close"])')){if(locked&&!el.disabled){el.disabled=true;el.dataset.pendingDisabled='true';}else if(!locked&&el.dataset.pendingDisabled){el.disabled=false;delete el.dataset.pendingDisabled;}}}
+function routeHash(){return U.view==='install'&&U.setupTab==='compatibility'?'#install/compatibility':U.view==='draft'?'#drafts/'+(U.wizard?.kind==='edit-run'?'revise/'+encodeURIComponent(U.wizard.id):'new'):U.view==='run'?'#runs/'+encodeURIComponent(U.runId)+'/'+(U.runDetailTab||'overview'):U.view==='comparisons'?'#comparisons/'+(U.comparisonTab||'review'):'#'+U.view;}
+function writeRoute(replace=false){const hash=routeHash();U.routeApplied=hash;if(window.location.hash!==hash)window.history[replace?'replaceState':'pushState'](null,'',hash);}
+function readRoute(){
+ const hash=window.location.hash;if(hash===U.routeApplied)return false;
+ let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=['overview'];}
+ const key=parts[0]||'overview';
+ if(key==='drafts'){U.view='draft';}
+ else if(key==='runs'&&parts[1]){U.view='run';U.runId=parts[1];U.detail=null;U.results=null;U.runDetailTab=['overview','kraken','assembly','quality','databases','advanced','modules','aware','deep','resources','activity','results','methods'].includes(parts[2])?parts[2]:'overview';}
+ else if(['compare','experiments','comparisons'].includes(key)){U.view='comparisons';U.comparisonTab=key==='experiments'||parts[1]==='create'?'create':'review';}
+ else if(key==='install'){U.view='install';U.setupTab=parts[1]==='compatibility'?'compatibility':'guide';}
+ else if(navs.some(n=>n[0]===key))U.view=key;
+ else return false;
+ U.routeApplied=hash;U.error='';return true;
+}
+function routeChanged(){draftInputs();if(readRoute()){if(!['new-run','edit-run'].includes(U.modal?.kind))U.modal=null;render();$('#main').focus({preventScroll:true});}}
+function navigate(view){U.navOpen=false;draftInputs();U.view=view;U.modal=null;U.error='';if(['compare','experiments'].includes(view)){U.view='comparisons';U.comparisonTab=view==='experiments'?'create':'review';}writeRoute();render();$('#main').focus({preventScroll:true});$('.workspace-shell').scrollIntoView({block:'start'});}
+function openRun(id,tab='overview',replace=false){draftInputs();U.view='run';U.runId=id;U.runDetailTab=tab;U.results=null;U.modal=null;U.error='';U.detail=null;writeRoute(replace);render();$('#main').focus({preventScroll:true});$('.workspace-shell').scrollIntoView({block:'start'});}
 
-  function setup(){return heading('Configuration','Your local workspace and available system resources.')+
-    `<div class="stats-grid"><div class="stat"><div class="stat-label">CPU cores</div><div class="stat-value">${e(S.cpu??'Unknown')}</div></div><div class="stat"><div class="stat-label">Available RAM</div><div class="stat-value">${e(S.ram_gib)} <small>GiB</small></div></div><div class="stat"><div class="stat-label">Application</div><div class="stat-value label">${e(S.version)}</div></div></div>`+
-    card('Workspace details','Separate from your Bactologix workspace.',`<dl class="detail-list"><dt>Location</dt><dd class="mono">${e(S.home)}</dd><dt>Environment</dt><dd>viromics (standard installer environment)</dd><dt>Mode</dt><dd>${S.desktop?'Managed desktop':'Browser'}</dd></dl><div class="notice"><p>FluPop installation and repair are available in Install & update. Resource profiles and GPU detection remain planned.</p></div>`);}
-  function render(){
-    $('#app-version').textContent='v'+S.version;
-    $('#navigation').innerHTML='<div class="nav-label">WORK</div>'+['overview','samples','runs','comparisons','jobs','reports'].map(nav).join('')+'<div class="nav-divider"></div><div class="nav-label">MANAGE</div>'+['install','resources','configure','storage'].map(nav).join('');
-    $('#crumb').textContent=names[U.view]+(U.runId?' / '+(U.runId==='editor'?'Unfinished draft':S.cloud_runs.find(r=>r.id===U.runId)?.label||U.runId):'');
-    $('#queue-status').textContent=active().length?active().length+' active jobs':'No active jobs';
-    $('#main').innerHTML=({overview,samples,runs,comparisons,jobs,reports,install:updates,resources,configure:setup,storage}[U.view]||overview)();
-    if(U.notice){const box=document.createElement('div');box.className='notice v-feedback'+(U.notice.ok?'':' amber');box.setAttribute('role',U.notice.ok?'status':'alert');box.textContent=U.notice.text;$('#main').insertBefore(box,$('#main').children[1]||null);}
-    $('[data-action="restart-as-browser"]').disabled=!S.desktop||Boolean(U.pending);
-    $('#main').setAttribute('aria-busy',String(Boolean(U.pending)));
-  }
-  function nav(view){return `<a href="#${view}" data-nav="${view}" aria-label="${names[view]}" class="nav-item ${view===U.view?'active':''}" ${view===U.view?'aria-current="page"':''}>${icon(view)}${names[view]}${view==='jobs'&&active().length?`<span class="nav-count">${active().length}</span>`:''}</a>`;}
-  function drawer(open){root.classList.toggle('nav-open',open);$('.nav-scrim').hidden=!open;$('#nav-toggle').setAttribute('aria-expanded',String(open));}
-  function modal(title,body){
-    const prior=root.activeElement || parentElement.getRootNode().activeElement;
-    $('#modal-root').innerHTML=`<div class="modal-shade"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="card-head"><h2 id="dialog-title">${title}</h2><button class="icon-btn" data-action="close-modal" aria-label="Close dialog">×</button></div><div class="card-body">${body}</div></section></div>`;
-    U.modalFocus=prior;$('[data-action="close-modal"]').focus();
-  }
-  function closeModal(){$('#modal-root').innerHTML='';U.browser=null;U.modalFocus?.focus();}
-  function browserDialog(){
-    if(!U.browser)return;
-    const b=U.browser;
-    modal(U.browseMode==='folder'?'Choose sample folder':'Choose input file',`<p class="v-path">${e(b.folder)}</p><div class="button-row"><button class="btn" data-action="browse-enter" data-path="${e(b.parent)}">Parent folder</button>${U.browseMode==='folder'?`<button class="btn primary" data-action="browse-select" data-path="${e(b.folder)}">Use this folder</button>`:''}</div><form id="browse-form" class="v-form"><label for="browse-path">Go to folder</label><input id="browse-path" value="${e(b.folder)}"><button class="btn" type="submit">Go</button></form><div style="max-height:340px;overflow:auto">${b.entries.filter(x=>U.browseMode!=='folder'||x.directory).map(x=>`<div class="pipeline-row"><button class="quiet" data-action="${x.directory?'browse-enter':'browse-select'}" data-path="${e(x.path)}">${icon(x.directory?'storage':'reports')}${e(x.name)}${x.directory?' /':''}</button></div>`).join('')||'<p>No matching entries.</p>'}</div>${b.truncated?'<p>Showing the first 500 entries. Use the path field for another location.</p>':''}`);
-  }
-  on(root,'click',event=>{
-    const target=event.target.closest('[data-nav],[data-action]');if(!target)return;
-    if(target.dataset.nav){event.preventDefault();navigate(target.dataset.nav);return;}
-    switch(target.dataset.action){
-      case 'toggle-navigation':drawer(!root.classList.contains('nav-open'));break;
-      case 'close-navigation':drawer(false);$('#nav-toggle').focus();break;
-      case 'close-modal':closeModal();break;
-      case 'refresh':send('refresh');break;
-      case 'browse-folder':case 'browse-input':U.browseMode=target.dataset.action==='browse-folder'?'folder':'file';U.browseField=target.dataset.field;send('browse',{path:U.browseMode==='folder'?U.draft.path:U.editor[U.browseField]||S.samples.find(r=>r.id===U.editor.sample)?.path});break;
-      case 'browse-enter':send('browse',{path:target.dataset.path});break;
-      case 'browse-select':if(U.browseMode==='folder')U.draft.path=target.dataset.path;else{U.editor[U.browseField]=target.dataset.path;persist();}closeModal();render();break;
-      case 'new-sample':U.addSample=true;render();break;
-      case 'sample-draft':beginDraft(target.dataset.run);break;
-      case 'new-run':beginDraft();break;
-      case 'demo-draft':beginDraft('',true);break;
-      case 'sample-runs':U.sampleFilter=target.dataset.run;navigate('runs');break;
-      case 'edit-run':beginDraft('',false,S.cloud_runs.find(r=>r.id===target.dataset.run));break;
-      case 'clone-run':{const r=S.cloud_runs.find(r=>r.id===target.dataset.run);beginDraft('',false,{...r,status:'clone',label:(r.label||r.sample)+' copy'});break;}
-      case 'discard-editor':U.editor=null;persist();navigate('runs');break;
-      case 'run-start':send('run-start',{run_id:target.dataset.run});break;
-      case 'archive-run':send('run-archive',{run_id:target.dataset.run,archived:true});break;
-      case 'restore-run':send('run-archive',{run_id:target.dataset.run,archived:false});break;
-      case 'current-runs':U.archived=false;render();break;
-      case 'archived-runs':U.archived=true;render();break;
-      case 'reset-runs':U.sampleFilter=null;U.runSearch='';U.runStatus='';render();break;
-      case 'flupop-install':send('flupop-install');break;
-      case 'flupop-resume':send('flupop-resume',{run_id:target.dataset.run});break;
-      case 'cloud-open':send('cloud-open',{run_id:target.dataset.run});break;
-      case 'cloud-download':{const bytes=Uint8Array.from(atob(U.cloud.archive),c=>c.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:'application/zip'}));const a=document.createElement('a');a.href=url;a.download=U.cloud.run.id+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);break;}
-      case 'restart-as-browser':send('restart-as-browser');break;
-      case 'app-updates':navigate('install');if(!S.app_update.catalog)send('app-check');break;
-      case 'app-check':send('app-check');break;
-      case 'app-install':send('app-install',{release_id:U.releaseId});break;
-      case 'get-support':modal('Virologix support','<p>Report interface or installation issues with your application version and relevant error details.</p><a class="btn primary v-result" href="https://github.com/crackberryq/Virologix/issues" target="_blank" rel="noopener noreferrer">Open GitHub issues ↗</a>');break;
-      case 'about':modal('About Virologix',`<p>Created by <strong>Jimi Goldstein · Human Link GenoMix</strong>.</p><p class="v-note">Virologix ${e(S.version)} · Local alpha</p><p class="v-note">Bactologix workspace design, adapted for Virologix. Viral Cloud supplied-record reports are available. Raw-read analysis is not included.</p>`);break;
-    }
-  });
-  on(root,'input',event=>{
-    if(event.target.closest('#sample-form'))U.draft[event.target.name]=event.target.value;
-    if(event.target.closest('#run-form')){U.editor[event.target.name]=event.target.value;persist();}
-    if(event.target.id==='sample-search'){U.filter=event.target.value;$('#sample-results').innerHTML=sampleTable(S.samples.filter(r=>(r.id+' '+(r.path||'')).toLowerCase().includes(U.filter.toLowerCase())));}
-    if(event.target.id==='run-search'){U.runSearch=event.target.value;const input=event.target,pos=input.selectionStart;render();$('#run-search').focus();$('#run-search').setSelectionRange(pos,pos);}
-  });
-  on(root,'submit',event=>{
-    if(event.target.id==='browse-form'){event.preventDefault();send('browse',{path:$('#browse-path').value});}
-    if(event.target.id==='sample-form'){event.preventDefault();send('sample-add',U.draft);}
-    if(event.target.id==='run-form'){event.preventDefault();send('run-save',U.editor);}
-  });
-  on(root,'change',event=>{
-    if(event.target.id==='run-status'){U.runStatus=event.target.value;render();}
-    if(event.target.id==='edit-sample'){U.editor.sample=event.target.value;persist();}
-    if(event.target.id==='update-channel'){U.updateChannel=event.target.value;render();}
-    if(event.target.name==='update-release'){U.releaseId=event.target.value;render();}
-  });
-  on(root,'keydown',event=>{
-    if(event.key==='Escape'){closeModal();drawer(false);}
-    const dialog=$('[role="dialog"]');
-    if(dialog && event.key==='Tab'){const focusable=[...dialog.querySelectorAll('button,a[href],input')];const first=focusable[0],last=focusable.at(-1);const active=parentElement.getRootNode().activeElement;if(event.shiftKey&&active===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&active===last){event.preventDefault();first.focus();}}
-  });
+let modalReturnFocus=null;
+function modal(kind,id='',options={}){if(!U.modal){const opener=parentElement.activeElement;modalReturnFocus=opener?.closest('.workspace-tools')?{tools:true}:opener?.closest('.sidebar')&&window.matchMedia('(max-width:900px)').matches?{navigation:true}:{action:opener?.dataset.action,id:opener?.dataset.id};}closeNavigation(false);U.modal={kind,id,...options};renderModal();$('.modal input,.modal select,.modal button')?.focus();}
+function closeModal(){if(U.modal?.kind==='support')clearSupport();if(U.modal?.kind==='folders'&&U.browserReturn){U.modal=U.browserReturn;U.browserReturn=null;U.error='';renderModal();return;}U.modal=null;U.browserReturn=null;$('#modal-root').innerHTML='';$('.app-shell').removeAttribute('inert');render();const back=modalReturnFocus;modalReturnFocus=null;const target=back?.tools?$('.workspace-tools summary'):back?.navigation?$('#nav-toggle'):back?.action?$$('[data-action]').find(n=>n.dataset.action===back.action&&n.dataset.id===back.id&&!n.disabled&&n.getClientRects().length):null;(target?.getClientRects().length&&!target.disabled?target:$('#main')).focus({preventScroll:true});}
+function setDraft(id,value){U.drafts[id]=value;const el=$('#'+id);if(el)el.value=value;}
+function pipelineVersionChoices(tool){
+ const rows=S.catalogs[tool].versions,stable=val('release-channel','prerelease')==='stable';
+ const releases=rows.filter(r=>r.kind==='release'&&(!stable||!r.prerelease)).sort((a,b)=>(b.publishedAt||'').localeCompare(a.publishedAt||''));
+ const recommended=releases.find(r=>r.supported)||(!stable&&rows.find(r=>r.kind==='pinned'&&r.preferred&&r.supported))||null;
+ const ordered=[...(recommended?[recommended]:[]),...releases.filter(r=>r.id!==recommended?.id),...rows.filter(r=>r.kind!=='release'&&r.id!==recommended?.id)];
+ return {releases,recommended,ordered};
+}
+function defaultPipelineVersion(tool){
+ const {ordered,recommended}=pipelineVersionChoices(tool),kind=val('version-channel','all'),query=val('version-search').toLowerCase();
+ const visible=r=>(val('release-channel','prerelease')!=='stable'||r.kind==='release'&&!r.prerelease)&&(kind==='all'||r.kind===kind)&&(r.ref+' '+r.name).toLowerCase().includes(query);
+ return (recommended&&visible(recommended)?recommended:ordered.find(r=>r.supported&&visible(r)))?.id||'';
+}
+function browse(target,path='',nearest=false){U.browserReturn=U.modal?{...U.modal}:null;U.browser=null;U.drafts['folder-query']='';U.drafts['folder-hidden']=false;modal('folders',target);request('browse_folders',{path,nearest});}
+function draftInputs(){U.recoveryOpen ||= {};for(const el of $$('.recovery-panel'))U.recoveryOpen[el.dataset.recoveryJob]=el.open;for(const el of $$('input[id],textarea[id],select[id]')){if(el.type==='file')continue;U.drafts[el.id]=el.type==='checkbox'?el.checked:el.value;}if(wizardKind()==='new-run'&&U.runBudgetTool&&$('#run-cores')){U.runBudgets||={};U.runBudgets[U.runBudgetTool]={cores:val('run-cores'),memory_mb:val('run-memory')};}}
+function draftBudget(tool){U.runBudgets||={};U.budgetDefaults||={};const defaults=S.resource_defaults?.[tool]||{cores:4,memory_mb:16000},stamp=JSON.stringify(defaults);if(U.budgetDefaults[tool]!==stamp){delete U.runBudgets[tool];U.budgetDefaults[tool]=stamp;}return U.runBudgets[tool]||defaults;}
+function krakenLabel(r){return r.tool==='hybas'?({off:'Off',manual:'Manual',auto:'Auto',aware:'AWARE'}[r.kraken_mode]||r.kraken_mode||'Pipeline default'):'—';}
+function readMode(mode){return ({hybrid:'Hybrid',illumina_only:'Illumina only',ont_only:'ONT only'}[mode]||String(mode).replaceAll('_',' '));}
+function runTable(runs,checks=false,archived=false,context='runs'){
+ if(!runs.length)return empty(archived?'No archived runs.':'No runs in this list.',archived?'Archived runs retain their saved configuration and outputs.':'Change the filters or create a run draft.',!archived?btn('new-run','Create run drafts',true):'');
+ return `<div class="table-wrap"><table><thead><tr>${checks?'<th>Select</th>':''}<th>Saved run</th><th>Input mode</th><th>Report</th><th>Status</th><th>Actions</th></tr></thead><tbody>${runs.map(r=>`<tr data-run-row="${e(r.id)}">${checks?`<td><input type="checkbox" data-select="${e(r.id)}" aria-label="Select ${e(r.label)}" ${U.selected.includes(r.id)?'checked':''}></td>`:''}<td><a class="sample-name" href="#runs/${encodeURIComponent(r.id)}/overview" data-action="run-detail" data-id="${e(r.id)}">${e(r.label)}</a><span class="secondary-line">${e(r.sample.id)} · ${e(S.pipelines[r.tool].name)}</span><span class="secondary-line run-identity">${e(r.id)}</span></td><td>${badge(readMode(r.sample.mode))}</td><td>${e(r.tool==='flupop'?'Viral Cloud':r.strategy)}</td><td>${r.archived?badge('Archived'):statusBadge(r.status)}</td><td><div class="table-actions">${context==='parent'?btn('create-variant','Use as parent',false,r.id,'branch',r.busy):quiet('run-detail','Open run',r.id)}${context==='runs'?(r.archived?btn('restore-run','Restore',false,r.id,'arrow'):btn('archive-run','Archive',false,r.id,'trash',r.busy)):''}</div></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function pipelineRows(){return Object.keys(S.pipelines).map(t=>{const i=activeInstall(t)||S.installs.find(x=>x.tool===t);return `<div class="pipeline-row"><div class="pipeline-logo ${t}">${t==='flupop'?'F':t==='hybas'?'H':t==='basis'?'B':'M'}</div><div class="pipeline-info"><strong>${S.pipelines[t].name}</strong><small>${e(i?.version.ref||'Choose a version to get started')}</small></div>${badge(i?.setup_state||'Not installed',i?.ready?'green':'amber')}</div>`;}).join('');}
+function overview(){
+ const active=S.jobs.filter(j=>['queued','running'].includes(j.status)),recent=visibleRuns().slice(0,5);
+ const failures=['failed','interrupted'];
+ const attention=visibleRuns().filter(r=>failures.includes(r.status)).map(r=>{
+  const jobs=S.jobs.filter(j=>j.payload.run_id===r.id),execution=jobs.find(j=>j.payload.action==='run');
+  return execution&&failures.includes(execution.status)?execution:jobs.find(j=>failures.includes(j.status));
+ }).filter(Boolean).sort((a,b)=>b.created.localeCompare(a.created)).slice(0,3);
+ const next=!S.installs.some(i=>i.ready)?['Set up a pipeline','Choose a pipeline and prepare its runner.','go-install','Set up pipelines']:!S.samples.length?['Add your input folders','Register a sample folder to make it available for new drafts.','new-sample','Add sample']:!visibleRuns().length?['Create your first run','Choose samples, review settings and save a draft before launching.','new-run','Create run drafts']:null;
+ return heading('WORKSPACE OVERVIEW','Pick up where you left off.','Your saved runs, active work and next steps.',S.samples.length?btn('new-run','Create run drafts',true,'','plus'):btn('new-sample','Add samples',true,'','plus'))+
+ `<div class="stats-grid">${[['Samples',S.samples.length,'Registered input folders','samples'],['Runs',visibleRuns().length,'Current drafts and history','play'],['Active jobs',active.length,'Queued or running','jobs'],['Reports',S.reports.length,'Native outputs and added reports','file']].map(([label,value,note,ico])=>`<div class="stat"><div class="stat-label">${label}${icon(ico)}</div><div class="stat-value">${value}</div><div class="stat-foot">${note}</div></div>`).join('')}</div>
+ ${next?`<section class="card next-step"><div><span class="eyebrow">NEXT STEP</span><h2>${next[0]}</h2><p>${next[1]}</p></div>${btn(next[2],next[3],true,'','arrow')}</section>`:''}
+ <div class="overview-grid"><div><section class="card"><div class="card-head"><div><h2>${active.length?'Active work':'Job queue'}</h2><p>${active.length?'Jobs continue when this browser closes.':'No jobs are queued or running.'}</p></div>${quiet('go-jobs','All jobs')}</div>${active.slice(0,3).map(j=>`<div class="overview-job"><div><strong>${e(runBy(j.payload.run_id)?.label||j.kind.replaceAll('_',' '))}</strong><span class="secondary-line">${e(j.payload.action||j.kind)}</span></div>${jobStatus(j)}${btn('job-log','View log',false,j.id)}</div>`).join('')}</section>
+ ${S.migration_issues?.length?notice('Earlier drafts need attention',S.migration_issues.map(r=>e(r.id)+': '+e(r.message)).join('<br>'),true):''}${attention.length?`<section class="card attention-card"><div class="card-head"><div><h2>Needs attention</h2><p>Saved runs with failed or interrupted work.</p></div>${badge(attention.length+' runs')}</div>${attention.map(j=>`<div class="overview-attention"><strong>${e(j.guidance?.title||'Job needs attention')}</strong><p>${e(runBy(j.payload.run_id)?.label||j.kind.replaceAll('_',' '))}</p><div class="button-row">${runBy(j.payload.run_id)?btn('run-detail','Review run',false,j.payload.run_id):''}${quiet('job-log','View log',j.id)}</div></div>`).join('')}</section>`:''}</div>
+ <section class="card overview-pipelines"><div class="card-head"><h2>Pipeline setup</h2>${quiet('go-install','Manage')}</div><div class="card-body">${pipelineRows()}<p class="settings-note">Runner setup is separate from each run’s tool and database checks.</p></div></section></div>
+ <section class="card recent-runs"><div class="card-head"><div><h2>Recent runs</h2><p>Open a run to review settings, checks, activity and results.</p></div>${quiet('go-runs','All runs')}</div>${runTable(recent,false,false,'recent')}</section>`;
+}
+function samples(){
+ const q=val('registered-sample-search').toLowerCase(),rows=S.samples.filter(s=>`${s.id} ${s.path}`.toLowerCase().includes(q));
+ return heading('SAMPLES','Your input folders.','Register folders once, then use them in independent run drafts.',btn('import','Import table',false,'','file')+btn('new-sample','Add sample',true,'','plus'))+
+ `<section class="card registered-samples"><div class="card-head"><div><h2>Registered samples</h2><p>${S.samples.length} folder${S.samples.length===1?'':'s'} · Original files stay in their current location.</p></div><input class="search" id="registered-sample-search" aria-label="Search registered samples" placeholder="Find a sample or folder…" value="${e(val('registered-sample-search'))}"></div>${rows.length?`<div class="table-wrap"><table><thead><tr><th>Sample</th><th>Read mode</th><th>Input folder</th><th>Actions</th></tr></thead><tbody>${rows.map(s=>`<tr data-sample-row="${e(s.id)}"><td><strong>${e(s.id)}</strong><span class="secondary-line">${S.runs.filter(r=>r.sample.id===s.id&&!r.archived).length} current runs</span></td><td>${e(readMode(s.mode))}</td><td class="path-cell">${e(s.path)}</td><td><div class="table-actions">${btn('sample-draft','Create draft',false,s.id,'plus')}${quiet('sample-runs','View runs',s.id)}${btn('remove-sample','Remove sample',false,s.id,'trash')}</div></td></tr>`).join('')}</tbody></table></div>`:empty(S.samples.length?'No matching samples.':'Start with a sample folder.',S.samples.length?'Try a different sample ID or folder name.':'Use Add sample or import a CSV/TSV table.',S.samples.length?'':btn('new-sample','Add sample',true))}<div class="section-note">Removing a sample also archives its inactive runs. Input files and reports are kept; active jobs stay visible in Runs.</div></section>`;
+}
+function runsPage(){
+ const archived=U.runList==='archived',q=val('run-search').toLowerCase(),tool=val('run-filter-tool','all'),status=val('run-filter-status','all'),sample=U.runSampleFilter;
+ const rows=S.runs.filter(r=>!!r.archived===archived&&`${r.sample.id} ${r.label} ${r.id}`.toLowerCase().includes(q)&&(tool==='all'||r.tool===tool)&&(status==='all'||r.status===status)&&(!sample||r.sample.id===sample));
+ const hidden=U.selected.filter(id=>!rows.some(r=>r.id===id)).length;
+ return heading('RUNS','Drafts, activity and history.','Each run keeps its own configuration, input references and outputs.',btn('new-run','Create run drafts',true,'','plus'))+
+ `<section class="card saved-runs"><div class="run-list-toolbar"><div class="tabs"><button type="button" class="tab ${!archived?'active':''}" data-action="run-list" data-id="current">Current runs <span>${visibleRuns().length}</span></button><button type="button" class="tab ${archived?'active':''}" data-action="run-list" data-id="archived">Archived <span>${S.runs.filter(r=>r.archived).length}</span></button></div>${btn('clear-run-filters','Reset filters')}</div><div class="run-filters"><div class="field"><label for="run-search">Find a run</label><input class="search" id="run-search" aria-label="Search runs" placeholder="Sample, name or run ID…" value="${e(val('run-search'))}"></div>${select('run-filter-tool','Pipeline',[['all','All pipelines'],...Object.keys(S.pipelines).map(t=>[t,S.pipelines[t].name])],'all')}${select('run-filter-status','Status',[['all','All statuses'],['draft','Draft'],['checked','Validated'],['queued','Queued'],['running','Running'],['failed','Failed'],['interrupted','Interrupted'],['cancelled','Cancelled'],['completed','Completed']],'all')}</div>
+ ${sample?`<div class="filter-context">Runs for <strong>${e(sample)}</strong>${quiet('clear-sample-filter','Show all samples')}</div>`:''}
+ ${!archived&&U.selected.length?`<div class="selection-bar"><strong>${U.selected.length} selected${hidden?' · '+hidden+' outside this filter':''}</strong><div class="button-row">${btn('compare-selected','Compare settings')}${btn('batch-dry-run','Validate run')}${btn('batch-prepare','Install environments')}${btn('batch-run','Run / resume',true)}${btn('archive-selected','Archive',false,'','trash')}${btn('clear-selection','Clear')}</div></div>`:''}${runTable(rows,!archived,archived)}<div class="section-note">${rows.length} shown. ${archived?'Restore a run to use it again. Saved configurations and outputs are retained.':'Archive hides inactive runs from this list. It keeps their files, settings and reports.'}</div></section>`;
+}
+function comparisons(){
+ const tab=U.comparisonTab||'review',rows=visibleRuns().filter(r=>U.selected.includes(r.id));
+ let body;
+ if(tab==='create')body=notice('Branch from existing results','Keep valid intermediate results, change selected settings, and run only the affected work. The parent stays unchanged. Reuse depends on the recorded pipeline version and available native checkpoints.')+`<section class="card"><div class="card-head"><div><h2>Choose a parent run</h2><p>Create alternate settings without changing the parent.</p></div></div>${(visibleRuns().some(r=>r.status==='completed'&&r.run_type!=='followup')?runTable(visibleRuns().filter(r=>r.status==='completed'&&r.run_type!=='followup'),false,false,'parent'):empty('No completed parent runs.','Finish a run before creating a result variant.'))}</section>`;
+ else body=`<details class="card comparison-picker" ${!rows.length?'open':''}><summary>Choose runs · ${rows.length} selected</summary>${runTable(visibleRuns(),true,false,'comparison')}<div class="padded">${btn('clear-selection','Clear selection')}</div></details><div class="compare-grid">${rows.map(r=>`<section class="card run-compare">${badge(S.pipelines[r.tool].name,'blue')}<h3>${e(r.label)}</h3>${statusBadge(r.status)}<dl class="detail-list"><dt>Sample</dt><dd>${e(r.sample.id)}</dd><dt>Parent</dt><dd>${e(r.parent||'Original draft')}</dd>${r.tool==='hybas'?`<dt>Kraken mode</dt><dd>${e(krakenLabel(r))}</dd><dt>Polishing</dt><dd>${e(r.strategy)}</dd>`:''}<dt>Result inheritance</dt><dd>${r.variant?e(r.variant.checkpoints)+' checkpoint groups · '+e(r.variant.parent):'Independent draft'}</dd><dt>Resources</dt><dd>${r.cores} cores · ${r.memory_mb} MB</dd><dt>Source</dt><dd>${e(r.commit?.slice(0,12))}</dd></dl>${btn('run-detail','Open run',false,r.id)}${quiet('view-results','View results',r.id)}</section>`).join('')}</div>${savedComparison(rows)}${rows.length?notice('Compare native outputs','This view compares saved settings and provenance. Open the actual reports to evaluate results.'):empty('Choose runs to compare.','Select the saved runs above, or select them in Runs and choose Compare settings.')}`;
+ return heading('COMPARISONS','Review settings. Explore alternatives.','Compare saved runs or create independent variant drafts.')+`<div class="tabs comparison-tabs">${[['review','Compare saved runs'],['create','Create variants']].map(([id,label])=>`<button type="button" class="tab ${tab===id?'active':''}" data-action="comparison-tab" data-id="${id}" aria-pressed="${tab===id}">${label}</button>`).join('')}</div>`+body;
+}
+function comparisonIds(){const rows=visibleRuns().filter(r=>U.selected.includes(r.id)),base=val('comparison-reference');return [rows.find(r=>r.id===base)||rows[0],...rows.filter(r=>r.id!==(rows.find(r=>r.id===base)||rows[0])?.id)].filter(Boolean).map(r=>r.id);}
+function comparisonMatches(){return U.comparison&&JSON.stringify(U.comparison.runs.map(r=>r.id))===JSON.stringify(comparisonIds());}
+function savedComparison(rows){
+ if(!rows.length)return '';
+ const valid=rows.length>=2&&rows.length<=4,match=comparisonMatches();
+ return `<section class="card saved-comparison" aria-label="Full saved configuration comparison"><div class="card-head"><div><h2>Full saved configurations</h2><p>Choose 2–4 runs above. The reference is a comparison anchor, not a recommended configuration.</p></div>${btn('compare-configurations','Compare configurations',true,'','',!valid)}</div><div class="comparison-controls">${select('comparison-reference','Reference run',rows.map(r=>[r.id,r.label]),rows[0]?.id)}${U.comparison&&!match?notice('Selection changed','Compare configurations again to review these runs.'):''}</div>${match?`<div class="comparison-record"><p>Compared ${e(U.comparison.created_at)} · ${U.comparison.changed_rows} different rows out of ${U.comparison.rows.length}.</p>${helpDetails('Comparison scope and export contents',U.comparison.notice)}<details><summary>Configuration hashes</summary>${U.comparison.runs.map(r=>`<p><strong>${e(r.label)}</strong> · ${e(r.id)}<br>Exact saved YAML: <code>${e(r.config_sha256)}</code><br>Typed values: <code>${e(r.value_sha256)}</code></p>`).join('')}</details></div><div class="comparison-filters">${field('comparison-search','Search setting paths','','search')}${select('comparison-scope','Compare section',[['all','Configuration and provenance'],['configuration','Configuration values'],['provenance','Recorded provenance']])}<label class="check-field"><input type="checkbox" id="comparison-differences" ${val('comparison-differences',true)?'checked':''}> Differences only</label></div><div id="comparison-table" tabindex="-1">${comparisonTable()}</div><div class="padded">${btn('download-comparison','Refresh & download comparison',false,'','download')}<p class="settings-note">Downloads all rows, including unchanged and filtered rows. Refreshes this displayed comparison from saved records. Long cells are shortened on screen; the JSON contains their full YAML values. Paths list separate key segments, so literal dots stay distinct. Scroll the table horizontally on narrow screens.</p></div>`:'<div class="padded">Select 2–4 saved runs, then compare. No checks or workflows are started.</div>'}</section>`;
+}
+function comparisonTable(){
+ const d=U.comparison,q=val('comparison-search').toLowerCase().trim(),scope=val('comparison-scope','all'),only=val('comparison-differences',true);
+ const rows=d.rows.filter(r=>(!only||r.changed)&&(scope==='all'||r.scope===scope)&&(JSON.stringify(r.path)+' '+r.path.join('.')).toLowerCase().includes(q)),pages=Math.max(1,Math.ceil(rows.length/50));
+ U.comparisonPage=Math.max(0,Math.min(U.comparisonPage||0,pages-1));const start=U.comparisonPage*50;
+ return `<p class="comparison-count" role="status">${rows.length?`${start+1}–${Math.min(start+50,rows.length)} of ${rows.length} matching rows`:'No matching rows'}</p>${rows.length?`<div class="table-wrap"><table class="configuration-diff"><thead><tr><th scope="col">Saved setting / provenance</th>${d.runs.map((r,i)=>`<th scope="col">${e(r.label)}${i===0?'<small>Reference</small>':''}<small>${e(r.id)}</small></th>`).join('')}</tr></thead><tbody>${rows.slice(start,start+50).map(r=>`<tr data-comparison-path="${e(JSON.stringify(r.path))}"><th scope="row"><code>${e(JSON.stringify(r.path))}</code><small>${e(r.scope)} · ${r.changed?'Different':'Same'}</small></th>${r.cells.map(c=>`<td class="${c.differs_from_reference?'comparison-changed':''}">${badge(c.type,c.differs_from_reference?'amber':'')}<pre>${e(c.present?(c.yaml.length>1000?c.yaml.slice(0,1000)+'\n… [shortened; full value in download]':c.yaml):'Not recorded')}</pre></td>`).join('')}</tr>`).join('')}</tbody></table></div>`:''}<div class="history-pagination">${btn('comparison-page','Previous rows',false,String(U.comparisonPage-1),'',U.comparisonPage===0)}<span>Page ${U.comparisonPage+1} of ${pages}</span>${btn('comparison-page','Next rows',false,String(U.comparisonPage+1),'',U.comparisonPage+1>=pages)}</div>`;
+}
+function refreshComparison(reset=false){if(!$('#comparison-table'))return;if(reset)U.comparisonPage=0;$('#comparison-table').innerHTML=comparisonTable();renderBusy();}
+function runPage(){
+ const r=runBy(U.runId),d=U.detail?.id===U.runId?U.detail:null;
+ if(!r)return heading('RUNS','Run not found.','This run is not registered in the current workspace.',btn('go-runs','Back to runs',true));
+ return `<div class="run-page-back">${quiet('go-runs','Back to runs')}</div>`+heading('SAVED RUN',e(r.label),e(r.sample.id)+' · '+e(S.pipelines[r.tool].name)+' · '+e(r.id),r.run_type==='followup'?'':btn('use-run-databases','Use saved databases',false,r.id,'resources',r.busy||r.archived)+btn('edit-run-settings','Edit settings',false,r.id,'config',r.busy||r.archived||!d))+
+ `<section class="card run-workspace" aria-label="Saved run workspace">${d?renderSavedRun(r,d):U.error?empty('Run details could not be loaded.','Review the message above and try again.',btn('run-detail','Retry',true,r.id)):'<div class="padded" role="status">Loading saved run settings…</div>'}</section>`;
+}
+function runActivity(r){
+ const jobs=S.jobs.filter(j=>j.payload.run_id===r.id);
+ return `<div class="settings-intro"><div><h3>Run activity</h3><p>Validation, environment preparation and execution jobs for this saved run.</p></div></div>`+(jobs.length?`<div class="run-activity">${jobs.map(j=>`<article class="run-job"><div><strong>${e(({'dry-run':'Validate run',prepare:'Install environments',run:'Run / resume','check-environments':'Check environments'}[j.payload.action])||j.kind)}</strong><span class="secondary-line">${e(j.created)} · ${e(j.id)}</span>${guidancePanel(j)}</div>${jobStatus(j)}<div class="button-row">${btn('job-log','View log',false,j.id)}${usageButton(j)}${['queued','running'].includes(j.status)?btn('cancel-job','Stop',false,j.id,'stop'):''}</div>${jobTelemetry(j)}</article>`).join('')}</div>`:empty('No jobs for this run yet.','Open Overview to validate its configuration and check its environments.'));
+}
+const compatibilitySupport={recommended:'Recommended snapshot',earlier_supported:'Earlier supported snapshot',contract_supported:'Reviewed release contract',unreviewed:'Unreviewed commit',missing_commit:'Commit not recorded',unknown_pipeline:'Unknown pipeline'};
+const compatibilityBinding={recorded_match:'Recorded installation matches',missing_installation:'Installation not registered',source_mismatch:'Installation/source mismatch',setup_needed:'Runner setup needed'};
+const compatibilityValidation={not_recorded:'No successful validation recorded',binding_unavailable:'Binding unavailable · review setup',same_runner_path:'Validation recorded for the same runner path',runner_changed:'Runner path changed · validate again'};
+function supportBadge(state){return badge(compatibilitySupport[state]||state,['recommended','earlier_supported','contract_supported'].includes(state)?'blue':'amber');}
+function compatibilityPanel(){
+ const d=U.compatibility;if(!d)return '<section class="card padded" role="status">Loading version records…</section>';
+ const app=d.app;
+ return `<section class="compatibility-overview" aria-label="Version compatibility overview"><div class="settings-intro"><div><h2>Versions and compatibility</h2><p>Local records read ${e(d.created_at)}. Branch names can move; supported commits are exact.</p></div><div class="button-row">${btn('refresh-compatibility','Refresh overview',false,'','clock')}${btn('download-compatibility','Download overview',false,'','download')}</div></div>${helpDetails('Recorded support · what this overview checks',d.notice)}<section class="card compatibility-app"><div class="card-head"><h3>Virologix and this runtime</h3>${app.restart_required?badge('Restart required','amber'):badge(app.installed_version?'Loaded package version matches':'Installed version unavailable')}</div><div class="padded"><dl class="compatibility-facts"><dt>Running application</dt><dd>v${e(app.running_version)}</dd><dt>Installed package</dt><dd>${e(app.installed_version||'Package metadata unavailable')}</dd><dt>Application Python</dt><dd>${e(app.python_version)} · installed requirement ${e(app.python_requirement||'not recorded')} · ${app.python_matches===null?'not verified':app.python_matches?'matches':'does not match'}</dd><dt>Execution platform</dt><dd>${e(app.platform)} · ${app.managed_execution_platform?'Linux execution platform':'Managed execution requires Linux or WSL2'}</dd><dt>Application interpreter</dt><dd class="path-cell">${e(app.python_executable)}</dd></dl>${app.active_update?notice('Application update in progress','Version records may change while the update completes.',true):''}<div class="button-row">${btn('app-updates','Review application update',false,'','download')}${btn('recovery-setup','Review pipeline setup',false)}</div></div></section><div class="compatibility-pipelines">${d.pipelines.map(p=>`<section class="card"><div class="card-head"><div><h3>${e(p.name)}</h3><p>Active for new drafts: ${e(p.active_installation||'None')}${p.active_installation&&!p.active_registered?' · not registered for this pipeline':''}</p></div></div><div class="padded">${p.commits.map(c=>`<div class="compatibility-commit">${supportBadge(c.support)}<a href="${e(safeURL(c.url))}" target="_blank" rel="noopener noreferrer"><code>${e(c.commit)}</code></a></div>`).join('')}<p class="inline-info">${e(p.catalog_origin)} · fetched ${e(p.catalog_checked_at||'date not recorded')}. ${p.unreviewed_catalog_refs} catalogue refs point to unreviewed commits. These saved listings are not a live freshness check.</p>${btn('versions','Review available versions',false,p.tool)}</div></section>`).join('')}</div><section class="card"><div class="card-head"><div><h3>Registered installations and runners</h3><p>Requirements are recorded from setup; actual installed package versions are not probed here.</p></div></div><div class="compatibility-installations">${d.installations.length?d.installations.map(i=>`<article data-compat-installation="${e(i.id)}"><div><strong>${e(i.id)}</strong> ${i.active?badge('Active for new drafts','blue'):''} ${supportBadge(i.support)}<p>${e(i.ref||'Ref label not recorded')}</p><p class="path-cell">Commit: ${e(i.commit||'Not recorded')}</p><p>${i.setup_recorded?'Runner setup recorded':'Runner setup not recorded as ready'} · last successful setup/check record: ${e(i.checked_at||'Not recorded')}</p><p>Recorded requirements: Python ${e(i.requirements.python||'unknown')} · Snakemake ${e(i.requirements.snakemake||'unknown')}</p><p class="path-cell">Runner (${e(i.runner_origin)}): ${e(i.runner||'Not recorded')}</p><p class="path-cell">Source: ${e(i.source||'Not recorded')}</p>${i.latest_check?`<p>Latest explicit setup/check job: ${e(i.latest_check.id)} · ${statusBadge(i.latest_check.status)}</p>`:''}</div><div class="button-row">${btn('recovery-setup','Review setup',false)}${i.latest_check?btn('job-log','Check log',false,i.latest_check.id):''}</div></article>`).join(''):'<p class="padded">No installations registered.</p>'}</div></section><section class="card compatibility-saved-runs"><div class="card-head"><div><h3>Saved-run bindings</h3><p>Each run keeps its own installation. Changing the active version for new drafts does not migrate old runs.</p></div></div><div class="padded"><div class="form-grid">${field('compatibility-search','Find a saved run','','search')}${select('compatibility-pipeline','Pipeline',[['','All pipelines'],...d.pipelines.map(p=>[p.tool,p.name])])}</div><div class="compatibility-filters"><label><input type="checkbox" id="compatibility-review" ${val('compatibility-review',false)?'checked':''}> Needs review only</label><label><input type="checkbox" id="compatibility-archived" ${val('compatibility-archived',false)?'checked':''}> Include archived runs</label></div></div><div class="compatibility-run-list">${d.runs.map(r=>`<article data-compat-run="${e(r.id)}" data-compat-search="${e((r.label+' '+r.id+' '+r.commit+' '+r.installation).toLowerCase())}" data-compat-tool="${e(r.tool)}" data-compat-archived="${r.archived}" data-compat-review="${r.needs_review}"><div><strong>${e(r.label)}</strong> ${r.archived?badge('Archived'):''} ${supportBadge(r.support)}<p>${e(r.id)} · ${e(r.tool)} · ${r.uses_active_selection?'Uses active selection':'Separate from active selection for new drafts'}</p><p class="path-cell">Saved commit: ${e(r.commit||'Not recorded')} · Installation: ${e(r.installation||'Not recorded')}</p><p>${badge(compatibilityBinding[r.binding],r.binding==='recorded_match'?'blue':'amber')} ${badge(compatibilityValidation[r.validation],r.validation==='same_runner_path'?'':'amber')}</p><details><summary>Runner and execution records</summary><p class="path-cell">Runner at draft creation: ${e(r.recorded_runner||'Not recorded')}</p><p class="path-cell">Current registered runner: ${e(r.current_runner||'Not recorded')}</p><p class="path-cell">Validation runner: ${e(r.validated_runner||'Not recorded')} · ${e(r.validated_at||'date not recorded')}</p>${r.runner_changed_since_draft?'<p>The registered runner differs from the original draft runner.</p>':''}<p>Latest execution: ${r.latest_execution?e(r.latest_execution.id)+' · '+statusBadge(r.latest_execution.status):'Not recorded'}. Execution results are separate from version compatibility.</p></details></div><div class="button-row">${btn('run-detail','Review saved run',false,r.id)}${btn('view-results','Results & downloads',false,r.id)}</div></article>`).join('')}</div><p id="compatibility-no-matches" class="padded" hidden>No matching saved runs.</p></section></section>`;
+}
+function filterCompatibility(){const q=val('compatibility-search','').toLowerCase().trim(),tool=val('compatibility-pipeline',''),archived=val('compatibility-archived',false),review=val('compatibility-review',false);let shown=0;for(const row of $$('[data-compat-run]')){row.hidden=!row.dataset.compatSearch.includes(q)||(tool&&row.dataset.compatTool!==tool)||(!archived&&row.dataset.compatArchived==='true')||(review&&row.dataset.compatReview!=='true');if(!row.hidden)shown++;}const empty=$('#compatibility-no-matches');if(empty)empty.hidden=shown>0;}
+
+const storageCategories={runs:'Runs & outputs',environments:'Environments & runners',databases:'Databases & models',backups:'Retained repair folders',sources:'Pipeline sources',logs:'Job logs',workspace:'Workspace remainder',shared:'Shared references'};
+function storageBytes(n){if(n==null)return 'Unavailable';const units=['B','KiB','MiB','GiB','TiB'];let i=0;while(n>=1024&&i<4){n/=1024;i++;}return n.toLocaleString(undefined,{maximumFractionDigits:i?2:0})+' '+units[i];}
+function storagePage(){
+ const d=U.storage,scan=d?.last_scan;
+ const intro=heading('STORAGE','Know what uses your disk.','Measure registered locations without changing their contents.',btn('refresh-storage','Refresh locations',false,'','clock'));
+ if(!d)return intro+'<section class="card padded" role="status">Loading registered locations…</section>';
+ const category=val('storage-category',''),rows=(scan?.locations||d.locations).filter(r=>!category||r.category===category);
+ const groups=Object.keys(storageCategories).map(key=>({key,rows:(scan?.locations||[]).filter(r=>r.category===key)}));
+ return '<div class="storage-overview">'+intro+`<section class="card storage-controls" aria-label="Storage measurement"><div class="card-head"><div><h2>Measure storage</h2><p>Workspace locations are included. External registered locations are optional.</p></div>${btn('scan-storage','Measure storage',true,'','cpu',!!S.app_update.active_job||S.app_update.restart_required)}</div><div class="padded"><label class="storage-check"><input type="checkbox" id="storage-external" ${val('storage-external',false)?'checked':''}> Include registered external locations (${d.locations.filter(r=>r.external).length})</label><p class="inline-info">Traversal budget: ${d.limits.seconds} seconds, ${d.limits.entries.toLocaleString()} entries, ${d.limits.depth} directory levels. Slow filesystem calls may take longer. No automatic scans or cleanup.</p><details class="storage-scope"><summary>Review registered paths before scanning · ${d.locations.length}</summary>${d.locations.map(r=>`<p class="path-cell">${r.external?'External':'Workspace'} · ${e(r.path)}</p>`).join('')}</details>${d.omitted?notice('Some references were omitted',d.omitted+' invalid or excess location references could not be included.',true):''}</div></section>`+
+ (scan?`<section class="card"><div class="card-head"><div><h2>Latest saved measurement</h2><p>${e(scan.created_at)} · ${scan.elapsed_s} seconds · ${scan.include_external?'Workspace + registered external locations':'Workspace locations only'}</p></div>${btn('download-storage','Download overview',false,'','download')}</div><div class="padded">${d.scope_changed?notice('Registered locations changed','This saved measurement uses the previous locations. Review the current paths and measure again.',true):''}${notice(scan.partial?'Partial measurement':'Measured within the stated scope',scan.partial?'Some locations or entries could not be measured. Displayed bytes are a lower bound; review limits and location states.':'Only encountered regular files are counted. These figures are not reclaimable-space estimates.',scan.partial)}<div class="storage-totals"><div><small>Logical file bytes</small><strong>${storageBytes(scan.logical_bytes)}</strong></div><div><small>Allocated file blocks${scan.allocation_known?'':' · partial'}</small><strong>${storageBytes(scan.allocated_bytes)}</strong></div><div><small>Directory entries inspected</small><strong>${scan.counters.entries.toLocaleString()}</strong></div></div><div class="storage-category-grid">${groups.filter(g=>g.rows.length).map(g=>`<div><strong>${e(storageCategories[g.key])}</strong><span>${storageBytes(g.rows.reduce((n,r)=>n+r.logical_bytes,0))}</span><small>${g.rows.length} locations · logical bytes</small></div>`).join('')}</div><p class="inline-info">Skipped links: ${scan.counters.links} · special files: ${scan.counters.special} · device crossings: ${scan.counters.mounts} · inaccessible entries: ${scan.counters.inaccessible} · depth limits: ${scan.counters.depth} · already counted file entries: ${scan.counters.hardlinks}. ${scan.limits_reached.length?'Limits reached: '+e(scan.limits_reached.join(', '))+'.':''}</p>${scan.active_jobs_at_start.length?notice('Work was active during measurement','Running jobs may change files while they are counted. Measure again after work finishes.',true):''}<details><summary>Accounting and ownership limits</summary><p>${e(scan.notice)}</p></details></div></section><section class="card"><div class="card-head"><div><h2>Filesystem capacity</h2><p>Available to the current user at scan time. Each device is shown once.</p></div></div><div class="storage-devices padded">${scan.devices.map(x=>`<div><strong>${storageBytes(x.available_bytes)} available / ${storageBytes(x.total_bytes)}</strong><p class="path-cell">Device ${e(x.device)} · ${e(x.path)}</p></div>`).join('')||'<p>No capacity reading available.</p>'}</div></section>`:notice('No measurement saved yet','Review the registered paths, then choose Measure storage. Opening this page does not traverse directories.'))+
+ `<section class="card storage-locations" aria-label="Storage locations"><div class="card-head"><div><h2>Locations and references</h2><p>Nested locations are counted separately; parent rows exclude files already counted. References do not prove exclusive ownership.</p></div>${select('storage-category','Category',[['','All categories'],...Object.entries(storageCategories)])}</div><div class="storage-location-list">${rows.map(r=>`<article data-storage-location="${e(r.id)}"><div><strong>${e(storageCategories[r.category])}</strong> ${badge(r.external?'External location':'Inside workspace',r.external?'amber':'blue')}<p class="path-cell">${e(r.path)}</p><p>${r.state?badge(({measured:'Measured',partial:'Partial',not_selected:'External · not selected',not_scanned:'Not reached',missing:'Missing',unavailable:'Unavailable or linked',refused:'Scope refused'})[r.state]||r.state,r.state==='measured'?'':'amber'):'Not measured'} ${r.state&&['measured','partial'].includes(r.state)?storageBytes(r.logical_bytes)+' logical · '+storageBytes(r.allocated_bytes)+' allocated':''}</p><details><summary>${r.references.length} reference(s)</summary>${r.references.map(ref=>`<div class="storage-reference"><span>${e(ref.label)}</span>${ref.view==='run'&&runBy(ref.run_id)?btn('view-results','Open run results',false,ref.run_id):ref.view?btn('storage-review','Review '+({install:'installations',resources:'databases',configure:'configuration'}[ref.view]||ref.view),false,ref.view):''}</div>`).join('')}</details></div></article>`).join('')||'<p class="padded">No locations in this category.</p>'}</div></section></div>`;
+}
+
+function resultFileState(row){return ({available:'Available',missing:'Not present',empty:'Empty file',too_large:'Open original on disk',unavailable:'Unavailable or linked file'})[row.state]||'Unknown';}
+function resultBytes(n){return n==null?'':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';}
+function runResults(r){
+ const d=U.results?.id===r.id?U.results:null;
+ const registered=S.reports.filter(x=>x.run===r.id&&!(d?.reports||[]).some(y=>y.id===x.id));
+ const actions=btn('refresh-results','Refresh results',false,r.id,'clock')+btn('result-config','Frozen YAML',false,r.id,'download')+btn('result-manifest','Results manifest',false,r.id,'download')+btn('open-methods','Methods & downloads',false,r.id,'download');
+ return `<section class="results-centre" aria-label="Run results and downloads"><div class="settings-intro"><div><h3>Results & downloads</h3><p>Reports, exact configuration and records for each attempt.</p></div></div><div class="button-row results-actions">${actions}</div>`+(d?`${notice('Review scope before using results',e(d.notice),true)}<div class="results-provenance"><span>Run: ${statusBadge(d.status)}</span><span>Latest execution: ${d.latest_execution?e(d.latest_execution.id)+' · '+statusBadge(d.latest_execution.status):'Not recorded'}</span><span>Source: <code>${e(d.commit||'Not recorded')}</code></span><span>Refreshed: ${e(d.created_at)}</span></div>${d.shared_output_unavailable?notice('Shared report belongs to another run','This follow-up no longer owns the shared report. Its attempt logs and resource records remain available.',true):''}<h4>Native reports</h4><p class="inline-info">Optional reports may be disabled or not applicable. Absence alone is not a failed-job diagnosis.</p><div class="results-report-list">${d.reports.map(x=>`<article data-result-report="${e(x.id)}"><div><strong>${e(x.name)}</strong> ${badge(resultFileState(x),x.state==='available'?'blue':'amber')}<p class="path-cell">${e(x.path)}</p><p class="secondary-line">${x.bytes!=null?e(resultBytes(x.bytes))+' · ':''}Producing attempt: not recorded</p><p>${x.observation?`Metadata observed after ${e(x.observation.job_id)} · ${statusBadge(x.observation.status)} · ${x.observation.changed==null?'before-attempt metadata unavailable':x.observation.changed?'new or changed during that attempt':'unchanged from before that attempt'}`:x.state==='missing'?'No report file at this path.':x.state==='unavailable'?'File metadata could not be read safely.':'No matching attempt observation. This file may predate the latest execution.'}</p></div><div class="button-row">${x.state==='available'?btn('open-result-report','Open report',true,x.id,'external')+btn('result-report','Download HTML',false,x.id,'download'):''}${x.observation?btn('job-log','Observed attempt log',false,x.observation.job_id):''}</div></article>`).join('')}</div><h4>Attempt records</h4><p class="inline-info">Execution, validation and environment checks remain separate. Missing records are not reconstructed.</p><div class="result-attempts">${d.attempts.length?d.attempts.map(j=>`<article class="result-attempt" data-result-attempt="${e(j.id)}"><div><strong>${e(({'run':'Execution','dry-run':'Validation',prepare:'Environment preparation','check-environments':'Environment check'})[j.action]||j.action)}</strong> ${jobStatus(j)}<p>${e(j.id)} · ${e(j.created)}</p><p class="secondary-line">Log: ${e(resultFileState(j.log))} ${e(resultBytes(j.log.bytes))} · Resource record: ${j.resource_record?(j.resource_partial?'Partial':'Recorded'):'Not collected'}</p><p class="path-cell">${e(j.log.path)}</p></div><div class="button-row">${btn('job-log','View log',false,j.id,'file',['missing','unavailable'].includes(j.log.state))}${btn('download-log','Download log',false,j.id,'download',!['available','empty'].includes(j.log.state))}${btn('job-usage','Resource usage',false,j.id,'cpu',!j.resource_record)}</div></article>`).join(''):'<p>No attempts recorded for this run.</p>'}</div>`:U.error?'<p>Results could not be loaded. Refresh to try again.</p>':'<p role="status">Loading result records…</p>')+(registered.length?`<h4>Registered reports</h4><p class="inline-info">User-selected association; producing attempt not recorded.</p><div class="run-reports">${registered.map(x=>`<article><div><strong>${e(x.name)}</strong><p class="path-cell">${e(x.path)}</p></div>${btn('open-report','Open report',true,x.id,'external')}</article>`).join('')}</div>`:'')+`<div class="button-row">${quiet('go-reports','All reports')}</div></section>`;
+}
+function resultRunCards(){return `<section class="card result-run-picker" aria-label="Results by run"><div class="card-head"><div><h2>Results by run</h2><p>Open a run even when no HTML reports have been produced.</p></div></div><div class="padded"><div class="form-grid">${field('results-search','Find a run', '', 'search')}${select('results-pipeline','Pipeline',[['','All pipelines'],...Object.keys(S.pipelines).map(t=>[t,S.pipelines[t].name])])}</div><label class="results-archive"><input id="results-archived" type="checkbox" ${val('results-archived',false)?'checked':''}> Include archived runs</label><div class="result-run-grid">${S.runs.map(r=>`<article class="result-run" data-result-run="${e(r.id)}" data-result-search="${e((r.label+' '+r.sample.id+' '+r.id).toLowerCase())}" data-result-tool="${e(r.tool)}" data-result-archived="${r.archived?'yes':'no'}"><div><strong>${e(r.label)}</strong><p>${e(r.sample.id)} · ${e(S.pipelines[r.tool].name)}</p>${statusBadge(r.status)} ${r.archived?badge('Archived'):''}<p class="secondary-line">${e(r.id)}</p></div>${btn('view-results','Results & downloads',true,r.id,'download')}</article>`).join('')}</div><p id="results-no-matches" hidden>No matching runs.</p></div></section>`;}
+function filterResults(){const q=val('results-search','').toLowerCase().trim(),tool=val('results-pipeline',''),archived=val('results-archived',false);let shown=0;for(const row of $$('.result-run')){row.hidden=!row.dataset.resultSearch.includes(q)||(tool&&row.dataset.resultTool!==tool)||(!archived&&row.dataset.resultArchived==='yes');if(!row.hidden)shown++;}const empty=$('#results-no-matches');if(empty)empty.hidden=shown>0;}
+
+function appUpdateNotice(){const u=S.app_update;if(!u)return '';
+if(u.active_job)return notice('Updating Virologix',u.automatic_restart?'Follow installation in Jobs & progress. After verification, the app will restart and this tab will refresh automatically.':'Follow installation in Jobs & progress. This session needs one manual restart after installation.');
+if(u.restart_required&&u.automatic_restart)return notice('Restarting Virologix','The update is verified. Keep this tab open; it will refresh when the new application is ready.');
+if(u.restart_required)return notice('Restart Virologix',`Installed package: v${e(u.installed_version)}. In the Virologix terminal press Ctrl+C, then rerun your launch command with the same port. Refresh this browser after restart.`,true);
+return '';}
+const setupSteps=[['capacity','PC capacity'],['pipeline','Pipeline'],['environments','Environments'],['databases','Databases'],['review','Review setup']];
+function install(){const tab=U.setupTab||'guide';return heading('INSTALL & UPDATE','Set up once. Run with confidence.','Follow the setup guide or open the individual tools below.')+`<div class="tabs setup-tabs" aria-label="Setup sections">${[['guide','Guided setup'],['software','Pipelines & environments'],['hardware','PC capacity'],['workstation','Workstation check'],['compatibility','Compatibility']].map(([id,label])=>`<button type="button" class="tab ${tab===id?'active':''}" data-action="setup-tab" data-id="${id}" aria-pressed="${tab===id}">${e(label)}</button>`).join('')}</div>`+(tab==='guide'?setupGuide():tab==='hardware'?hardwarePanel():tab==='workstation'?workstationPanel():tab==='compatibility'?compatibilityPanel():installSoftware());}
+
+function workstationPanel(){
+ const pending=S.jobs.some(j=>j.kind==='workstation'&&['queued','running'].includes(j.status));
+ return `<section class="card workstation-card"><div class="card-head"><div><h2>Check this workstation</h2><p>Run a small software check on this PC and keep a dated record.</p></div></div><div class="padded"><p>Checks workspace file access, the job worker, child-process logs and cancellation of a disposable test process. Optionally checks an existing runner with a tiny Snakemake job. Creates temporary test files and a retained local check record; no sample analysis, software installation or database download.</p>${select('workstation-runner','Runner to check',[['','App-only checks'],...S.installs.filter(i=>i.ready&&i.supported).map(i=>[i.id,S.pipelines[i.tool].name+' · '+i.version.ref])],'')}<div class="button-row">${btn('start-workstation','Start workstation check',true,'','check',pending)}</div><p class="inline-info">Browser launch, report viewing and downloads need your confirmation. GPU computation and recovery after a physical restart are not tested.</p></div></section><section class="card"><div class="card-head"><h2>Recent workstation checks</h2></div><div class="padded">${(S.workstation_checks||[]).length?(S.workstation_checks||[]).map(c=>`<div class="workstation-history"><span>${e(c.created)} · ${e(c.id)} ${statusBadge(c.job_status)}${c.partial?badge('Partial record','amber'):''}</span>${btn('workstation-detail','Review check',false,c.id)}</div>`).join(''):'<p>No checks recorded. Start one explicitly above.</p>'}</div></section>`;
+}
+function guidancePanel(j){
+ const g=j.guidance;if(!g)return '';
+ const hasRun=!!runBy(g.run_id);
+ const action=g.category==='dependencies'?btn('recovery-setup','Open pipeline setup',false,j.id):g.category==='databases'?btn('recovery-databases','Review database locations',false,j.id):hasRun?btn('run-detail','Review run checks',false,g.run_id):btn('go-install','Open setup');
+ return `<details class="job-guidance recovery-panel" data-recovery-job="${e(j.id)}" ${U.recoveryOpen?.[j.id]?'open':''}><summary>Why did this fail?</summary><strong>${e(g.title)}</strong><p>${e(g.confidence)}${g.step?' · Reported failed step: '+e(g.step):' · Failed step not identified'}</p><p>${e(g.text)}</p>${g.evidence?`<pre class="code-block recovery-evidence">${e(g.evidence)}</pre>`:'<p>No matching error excerpt is available.</p>'}<p class="inline-info">${e(g.scope)} Log excerpt: ${e(g.log_status)}. This local excerpt is not redacted.</p><div class="button-row">${action}${hasRun&&['databases','dependencies'].includes(g.category)?btn('run-detail','Review saved run',false,g.run_id):''}${btn('job-log','Inspect full log',false,j.id)}</div></details>`;
+}
+function workstationDetail(c){
+ if(!c)return '<p>Loading check record…</p>';
+ const editable=!!c.finished&&!['queued','running'].includes(c.job_status);
+ return `<div class="workstation-result">${statusBadge(c.job_status)}${c.partial?badge('Partial record','amber'):''}<p>${e(c.created)} · Virologix ${e(c.app_version||'not recorded')}</p><p class="inline-info">${e(c.scope)}</p>${c.rows.map(r=>`<article class="workstation-row"><div><strong>${e(r.label)}</strong>${badge(r.state,r.state==='Passed'?'green':r.state==='Failed'?'red':'amber')}</div><p>${e(r.detail)}</p><small>${e(r.checked_at)}</small></article>`).join('')}<h3>Your observations</h3><p>A completed software job does not confirm these browser actions. Confirm only what you actually observed.</p>${Object.entries(c.observation_labels).map(([key,label])=>{const confirmed=c.observations?.[key]?.confirmed;return `<article class="workstation-row"><p>${e(label)}</p><div class="button-row">${badge(confirmed?'Confirmed by user':'Not confirmed',confirmed?'green':'amber')}${btn('workstation-observe',confirmed?'Clear confirmation':'Confirm observation',false,key,'',!editable||!confirmed&&key!=='browser'&&!c.served?.[key])}</div></article>`;}).join('')}</div>`;
+}
+
+function setupGuide(){
+ const tool=U.setupTool||'flupop',step=U.setupStep||'capacity',index=setupSteps.findIndex(x=>x[0]===step),item=activeInstall(tool),env=item?S.environments[item.id]:null;
+ const verified=env?.rows.filter(r=>r.status==='Verified').length||0,configured=S.databases[tool].rows.filter(r=>!r.managed&&r.configured).length;
+ let body='';
+ if(step==='capacity')body=hardwarePanel();
+ else if(step==='pipeline')body=installSoftware(tool);
+ else if(step==='environments')body=`<section class="card guide-environments"><div class="card-head"><div><h2>Prepare your tools</h2><p>${e(S.pipelines[tool].name)} · ${e(item?.version.ref||'No active installation')}</p></div>${badge(verified+' verified / '+(env?.rows.length||0)+' listed')}</div><div class="card-body"><p>Matching environments are reused automatically when you update a pipeline. Check what is installed, install missing tools, or repair a supported dependency problem.</p>${!item?.ready?notice('Set up the runner first','Return to Pipeline and finish setup before preparing tool environments.',true):''}${env?.error?notice('Inventory needs attention',e(env.error),true):''}<div class="button-row">${btn('setup-check-environments','Check environments',true,item?.id||'','check',!item?.ready||item?.setup_busy||env?.busy)}${btn('setup-install-environments','Install environments',false,item?.id||'','download',!item?.ready||item?.setup_busy||env?.busy)}${btn('setup-repair-environments','Repair environments',false,item?.id||'','gear',!item?.ready||item?.setup_busy||env?.busy)}</div>${env?.cache?`<p class="path-cell">Environment folder: ${e(env.cache)}</p>`:''}<div class="guide-environment-list">${(env?.rows||[]).map(r=>`<div><strong>${e(r.name)}</strong>${badge(r.status,r.status==='Verified'?'green':'')}${r.message?`<p>${e(r.message)}</p>`:''}</div>`).join('')}</div><p class="settings-note">These are installation checks. A saved run still needs validation and its own environment inventory.</p></div></section>`;
+ else if(step==='databases'){U.resourceTool=tool;body=resources(true);}
+ else body=`<section class="card guide-review"><div class="card-head"><div><h2>Review before your first draft</h2><p>Recorded setup status for ${e(S.pipelines[tool].name)}. This does not certify a run as ready.</p></div>${btn('refresh','Refresh status',false,'','clock')}</div><div class="card-body"><div class="guide-review-row"><div><strong>Resource defaults</strong><p>${S.resource_defaults[tool].cores} CPU threads · ${S.resource_defaults[tool].memory_mb.toLocaleString()} MB · ${e(S.resource_defaults[tool].preset)}</p></div>${quiet('setup-step','Review capacity','capacity')}</div><div class="guide-review-row"><div><strong>Pipeline runner</strong><p>${e(item?.setup_state||'Not set up')} · ${e(item?.version.ref||'Choose a supported version')}</p></div>${quiet('setup-step','Review pipeline','pipeline')}</div><div class="guide-review-row"><div><strong>Tool environments</strong><p>${verified} verified / ${env?.rows.length||0} listed. Unchecked tools may need installation.</p></div>${quiet('setup-step','Review environments','environments')}</div><div class="guide-review-row"><div><strong>Saved database locations</strong><p>${configured} configured paths. Required resources depend on the run settings; native validation checks them.</p></div>${quiet('setup-step','Review databases','databases')}</div><div class="guide-review-row"><div><strong>Samples</strong><p>${S.samples.length} registered input folders.</p></div>${btn('new-sample','Add sample',false,'','plus')}</div><p class="settings-note">A draft freezes its input references, pipeline version and configuration. Validate it before running. Nothing launches from this review.</p><div class="button-row">${btn('new-run','Create run drafts',true,'','plus',!item?.ready||!S.samples.length)}${btn('go-samples','Manage samples')}</div></div></section>`;
+ return `<section class="setup-guide" aria-label="Guided setup"><div class="guide-heading"><div><span class="eyebrow">YOUR SETUP PATH</span><h2>From this computer to your first run.</h2><p>Move between steps freely. Existing installations and databases can be connected here.</p></div>${select('setup-pipeline','Pipeline to set up',Object.keys(S.pipelines).map(t=>[t,S.pipelines[t].name]),tool)}</div><nav class="setup-steps" aria-label="Setup steps">${setupSteps.map(([id,label],n)=>`<button type="button" class="setup-step ${step===id?'active':''}" data-action="setup-step" data-id="${id}" ${step===id?'aria-current="step"':''}><span>${n+1}</span>${label}</button>`).join('')}</nav><div class="guide-content">${body}</div><div class="guide-footer"><span>Step ${index+1} of ${setupSteps.length} · ${e(setupSteps[index][1])}</span><div class="button-row">${index?btn('setup-step','Back',false,setupSteps[index-1][0]):''}${index<setupSteps.length-1?btn('setup-step','Continue to '+setupSteps[index+1][1],true,setupSteps[index+1][0],'arrow'):''}</div></div></section>`;
+}
+function hardwarePanel(){
+ const h=S.hardware;if(!h)return empty('Hardware information unavailable','Refresh the inventory to detect this computer.',btn('detect-hardware','Detect hardware',true));
+ const gb=n=>n==null?'Unknown':(n/1024).toLocaleString(undefined,{maximumFractionDigits:1})+' GB',g=h.gpu;
+ const descriptions={high:'All available CPU threads, within the app limit. Maximum usable RAM with a system reserve.',medium:'Half the CPU threads and 60% of the usable RAM budget.',low:'A quarter of the CPU threads and 30% of the usable RAM budget.'};
+ return `<section class="card hardware-overview"><div class="card-head"><div><h2>This computer</h2><p>${e(h.system)} · ${e(h.architecture)}${h.wsl?' · WSL':''} · Detected ${e(new Date(h.checked_at).toLocaleString())}</p></div>${btn('detect-hardware','Detect again',false,'','cpu')}</div><div class="hardware-stats"><article><span>CPU available</span><strong>${h.cpu.available} threads</strong><small>${e(h.cpu.model)} · ${h.cpu.logical} logical${h.cpu.physical?' / '+h.cpu.physical+' physical':''} reported</small></article><article><span>RAM capacity</span><strong>${gb(h.memory.total_mb)}</strong><small>${gb(h.memory.available_mb)} available now · ${gb(h.memory.swap_mb)} swap</small></article><article><span>Workspace storage</span><strong>${gb(h.disk.free_mb)} free</strong><small>${gb(h.disk.total_mb)} total · ${e(S.workspace)}</small></article></div><p class="inline-info">${h.wsl?'These are resources available inside WSL, which may be lower than the Windows PC total. ':'CPU affinity and container limits are included when reported by Linux. '}Detection is read-only. Swap is excluded from RAM budgets.</p></section>
+ <section class="card hardware-gpu"><div class="card-head"><div><h2>GPU & CUDA</h2><p>${e(g.status)}</p></div>${badge(g.cards.length?g.cards.length+' NVIDIA GPU'+(g.cards.length===1?'':'s'):'GPU availability unknown',g.cards.length?'green':'')}</div>${g.cards.map(card=>`<div class="hardware-device"><strong>${e(card.name)}</strong><span>${gb(card.memory_mb)} VRAM · ${gb(card.free_mb)} free</span></div>`).join('')}<dl class="detail-list"><dt>NVIDIA driver</dt><dd>${e(g.driver||'Not detected')}</dd><dt>Driver CUDA support</dt><dd>${e(g.cuda_driver_max||'Not reported')}</dd><dt>CUDA toolkit (nvcc)</dt><dd>${e(g.cuda_toolkit||'Not found in the app environment')}</dd></dl>${g.cuda_visible_devices!==null?`<p class="inline-info">CUDA_VISIBLE_DEVICES: ${e(g.cuda_visible_devices||'(empty — CUDA devices hidden)')}</p>`:''}${g.other_devices.length?`<details class="guided-details"><summary>Graphics devices reported by PCI</summary><pre class="code-block">${e(g.other_devices.join('\n'))}</pre></details>`:''}<p class="inline-info">A GPU not detected here may still exist on the host, especially under WSL. Driver CUDA support and the installed toolkit are separate. GPU availability is informational: these presets set CPU and RAM budgets. GPU use depends on each tool and its environment.</p></section>
+ <section class="card hardware-presets"><div class="card-head"><div><h2>Choose your power level</h2><p>Save the YAML resource settings and CPU/RAM defaults used by new run drafts.</p></div>${select('hardware-target','Apply defaults to',[['both','All pipelines'],...Object.keys(S.pipelines).map(t=>[t,S.pipelines[t].name])],U.view==='install'&&(U.setupTab||'guide')==='guide'?(U.setupTool||'flupop'):'both')}</div><div class="power-grid">${h.presets.map(p=>`<article class="power-card ${p.id}"><span class="eyebrow">${p.id==='high'?'MAXIMUM THROUGHPUT':p.id==='medium'?'BALANCED':'LIGHTER LOAD'}</span><h3>${e(p.label)}</h3><div class="power-budget"><strong>${p.cores}</strong> CPU threads<br><strong>${gb(p.memory_mb)}</strong> RAM budget</div><p>${e(descriptions[p.id])}</p>${btn('apply-power-preset','Use '+p.label,p.id==='medium',p.id,'check',!p.available)}</article>`).join('')}</div><p class="inline-info">RAM reserves at least 1 GB or 5% for the system, capped by currently available memory. App limits: 512 CPU threads and 2,000,000 MB RAM. These are execution budgets; individual tools may use less. Database and tool minimum requirements still apply.</p><div class="hardware-saved">${Object.keys(S.pipelines).map(t=>{const p=h.defaults[t];return `<div><strong>${e(S.pipelines[t].name)}</strong><span>${p.cores} threads · ${gb(p.memory_mb)} · ${e(p.preset)}</span></div>`;}).join('')}</div><p class="inline-info">Existing saved runs retain their settings. Edit a run to create a revised draft when you want a different budget.</p></section>`;
+}
+function installSoftware(onlyTool=null){const d=S.doctor;return `<section class="card"><div class="card-head"><div><h2>Virologix application</h2><p>Running v${e(S.version)} · Choose which app release to install.</p></div>${btn('app-updates','Update Virologix',true,'','download')}</div></section>
+<div class="stats-grid"><div class="stat"><div class="stat-label">Platform</div><div class="stat-value">${e(d.system)}</div></div><div class="stat"><div class="stat-label">Free disk</div><div class="stat-value">${d.free_gb} GB</div></div><div class="stat"><div class="stat-label">CPU threads</div><div class="stat-value">${d.cpus}</div></div><div class="stat"><div class="stat-label">App Python</div><div class="stat-value">${e(d.python)}</div></div></div>
+<section class="card install-card"><div class="card-head"><div><h2>Local environment manager</h2><p class="path-cell">${e(d.conda||'Choose an existing Conda installation or install local Conda.')}</p></div><div class="button-row">${btn('conda','Choose Conda')}${!d.conda?btn('bootstrap','Install local Conda',true):''}${btn('smoke','Run software check',false,'','check')}</div></div><p class="inline-info">Each release gets the Python and Snakemake versions it requires. Setup installs a separate runner automatically, including local Conda when needed.</p></section>
+<div class="two-col">${(onlyTool?[onlyTool]:Object.keys(S.pipelines)).map(t=>{const i=activeInstall(t),p=S.pipelines[t],items=S.installs.filter(x=>x.tool===t),display=i||items[0];return `<section class="card install-card"><div class="pipeline-row"><div class="pipeline-logo ${t}">${t==='flupop'?'F':t==='hybas'?'H':t==='basis'?'B':'M'}</div><div class="pipeline-info"><strong>${p.name}</strong><small>${e(p.preferred)}</small></div>${badge(display?.setup_state||'Not installed',display?.ready?'green':'amber')}</div><p>${t==='flupop'?'Supplied-record packaging and Viral Cloud reporting through Snakemake.':t==='hybas'?'Assembly, AWARE and polishing workflows.':t==='basis'?'Standalone Snakemake analysis and Safety reporting.':'Protein properties and evidence reporting through Snakemake.'}</p><p class="inline-info">${e(S.setup_overview?.[t]?.state||'')} · ${e(S.setup_overview?.[t]?.message||'')}</p><dl class="detail-list"><dt>Active source</dt><dd>${e(i?.version.ref||'No active installation')}</dd><dt>Commit</dt><dd>${e(i?.version.commit?.slice(0,12)||'—')}</dd></dl><div class="button-row">${btn('versions',i?'Update / choose version':S.setup_overview?.[t]?.first_install?'First-time install':'Choose a version',true,t,'download')}${btn('existing-install','Connect existing',false,t,'folder')}${i?btn('check-install','Check setup',false,i.id,'',i.setup_busy):''}</div>
+${items.map(x=>`<div class="installation-entry" data-installation="${e(x.id)}"><div class="card-head"><strong>${e(x.version.ref)} · ${e(x.version.commit.slice(0,8))}</strong>${badge(x.setup_state,x.ready?'green':'amber')}</div><p class="inline-info">${e(x.setup_message)}</p><div class="button-row">${(!x.ready||x.setup_state==='Setup incomplete')&&x.supported?btn('setup-install',x.setup_state==='Setup incomplete'?'Retry setup':'Finish setup',true,x.id,'',x.setup_busy):''}${!x.supported?btn('app-updates','Update Virologix'):''}${x.ready?btn('use-install',S.active[t]===x.id?'Active version':'Use this version',false,x.id,'',S.active[t]===x.id||x.setup_busy):''}${x.supported?btn('setup-install-environments','Install environments',true,x.id,'download',!x.ready||x.setup_busy||S.environments[x.id]?.busy):''}${x.supported?btn('setup-check-environments','Check environments',false,x.id,'check',!x.ready||x.setup_busy||S.environments[x.id]?.busy):''}${x.setup_job?btn('job-log','Setup log',false,x.setup_job,'file'):''}</div><details class="config-section"><summary>Maintenance & installation details</summary><div class="padded"><div class="installation-cache"><span>Automatic environment reuse</span><code>${e(S.environments[x.id]?.cache||x.rule_cache||S.workspace+'/envs/'+t)}</code><small>Updates keep this folder. Matching environments are reused; missing or changed requirements need installation.</small></div><p class="path-cell">${x.origin==='local'?'Connected from: '+e(x.original_source):e(x.source)}</p><p class="path-cell">${e(x.controller||'Runner has not been created')}</p><div class="button-row">${btn('check-install','Check',false,x.id,'',!x.controller||!x.supported||x.setup_busy)}${btn('repair-install','Repair runner',false,x.id,'',!x.supported||x.setup_busy)}${x.supported?btn('setup-repair-environments','Repair environments',false,x.id,'gear',!x.ready||x.setup_busy||S.environments[x.id]?.busy):''}${btn('preview-uninstall','Uninstall version',false,x.id,'trash',x.setup_busy)}</div></div></details></div>`).join('')}</section>`;}).join('')}</div>${notice('Updates reuse compatible environments','Runner environments are identified by pipeline, environment definition and platform, then checked before reuse. A pipeline update may need a compatible runner. Normal runs reuse matching tool environments and stop if any are missing; use Install environments explicitly. Prior runs retain their original version.')}`;}
+function usageNumber(value,digits=1){return Number.isFinite(value)?value.toLocaleString(undefined,{maximumFractionDigits:digits}):'Unavailable';}
+function usageMeasure(value,unit){return Number.isFinite(value)?usageNumber(value)+unit:'Unavailable';}
+function usageDuration(value){if(!Number.isFinite(value))return 'Unavailable';const s=Math.floor(Math.max(0,value));return s>=3600?Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m':s>=60?Math.floor(s/60)+'m '+s%60+'s':s+'s';}
+function jobTelemetry(j){
+ const t=j.telemetry;if(!t)return '';const p=t.progress||{},running=j.status==='running',live=t.live;
+ const counts=Number.isInteger(p.completed)&&Number.isInteger(p.total)&&p.total>0;
+ return `<div class="job-progress" data-job-progress="${e(j.id)}"><div class="usage-inline"><span>Elapsed <strong>${usageDuration(t.elapsed_s)}</strong></span><span>${live?'CPU now':'Observed CPU'} <strong>${live?usageMeasure(t.latest?.cpu_percent,'%'):usageMeasure(t.samples?t.observed_cpu_s:null,' s')}</strong></span><span>Peak sampled RAM <strong>${usageMeasure(t.peak_rss_mb,' MiB')}</strong></span>${running?badge(live?'Receiving updates':'Updates paused',live?'green':'amber'):''}</div>${counts?`<div class="task-progress"><label>${p.completed} / ${p.total} tasks in current plan <span>${usageNumber(p.percent)}%</span></label><progress aria-label="Tasks in current plan" value="${p.completed}" max="${p.total}"></progress></div>`:p.source==='workflow log'?'<small>Task count not reported yet.</small>':''}${p.active_rules?.length?`<p class="usage-step">${live?'Active steps':'Last reported steps'}: <strong>${p.active_rules.map(e).join(', ')}</strong>${p.active_count>p.active_rules.length?' · '+p.active_count+' active tasks at last update':''}</p>`:live&&t.command_name?`<p class="usage-step">Command: <strong>${e(t.command_name)}</strong></p>`:''}${p.dynamic_plan?'<small>Checkpoints can change the task total.</small>':''}${t.incomplete||t.observer_errors?'<small class="usage-warning">Partial record — observation ended unexpectedly or some updates failed.</small>':''}${t.stale?'<small class="usage-warning">Showing the last saved measurements. Open the log to check the job.</small>':''}</div>`;
+}
+function usageButton(j){return j.telemetry?btn('job-usage','Resource use',false,j.id,'cpu'):'';}
+function usageChart(points,metric,title,unit){
+ // Draw interval bars, not interpolated lines. Compaction retains CPU integrals and RSS peaks.
+ const stride=Math.max(1,Math.ceil(points.length/100)),buckets=[];
+ for(let i=0;i<points.length;i+=stride){const group=points.slice(i,i+stride),a=group[0],b=group.at(-1),duration=b.end_s-a.start_s,observed=group.reduce((s,p)=>s+p.observed,0);const rss=group.map(p=>p.rss_peak_mb).filter(Number.isFinite);buckets.push({start:a.start_s,end:b.end_s,value:metric==='cpu'?(duration>=.1&&observed?100*group.reduce((s,p)=>s+p.cpu_s,0)/duration:null):(rss.length?Math.max(...rss):null),missing:group.some(p=>p.unavailable>0)});}
+ const values=buckets.map(p=>p.value).filter(Number.isFinite);if(!values.length)return `<section class="usage-chart"><h3>${e(title)}</h3><p>No usable measurements recorded.</p></section>`;
+ const peak=Math.max(1,...values),end=Math.max(1,...buckets.map(p=>p.end));
+ const bars=buckets.filter(p=>Number.isFinite(p.value)).map(p=>{const x=48+408*p.start/end,w=Math.max(1,408*(p.end-p.start)/end),height=114*p.value/peak;return `<rect x="${x.toFixed(2)}" y="${(140-height).toFixed(2)}" width="${w.toFixed(2)}" height="${Math.max(1,height).toFixed(2)}" opacity="${p.missing?'.45':'.85'}"><title>${e(usageDuration(p.start)+'–'+usageDuration(p.end)+': '+usageNumber(p.value)+' '+unit+(p.missing?' (partial readings)':''))}</title></rect>`;}).join('');
+ return `<section class="usage-chart"><h3>${e(title)}</h3><svg viewBox="0 0 470 175" role="img" aria-label="${e(title+' over elapsed job time; peak '+usageNumber(Math.max(...values))+' '+unit)}"><text x="4" y="20">${e(usageNumber(peak))}</text><text x="4" y="140">0</text><path d="M48 24V140H456"/><g>${bars}</g><text x="48" y="161">0s</text><text x="456" y="161" text-anchor="end">${e(usageDuration(end))}</text></svg><small>${metric==='cpu'?'Observed CPU per interval; 100% = one logical CPU.':'Peak process RSS sum per interval, in MiB.'} Faded bars contain missing readings.</small></section>`;
+}
+function usageDetail(data){
+ const t=data.summary,j={id:data.id,status:t.job_status,telemetry:t};
+ return `<div class="usage-detail">${statusBadge(t.job_status)}${jobTelemetry(j)}<p class="inline-info">Recorded for this job attempt only. A resumed run gets its own record.</p><div class="usage-charts">${usageChart(data.points,'cpu','CPU use (%)','%')}${usageChart(data.points,'ram','Sampled RAM (MiB)','MiB')}</div><div class="usage-facts"><div><span>Observed CPU time</span><strong>${usageMeasure(t.samples?t.observed_cpu_s:null,' s')}</strong></div><div><span>Usable / unavailable samples</span><strong>${usageNumber(t.samples,0)} / ${usageNumber(t.unavailable_samples,0)}</strong></div><div><span>Configured run budget</span><strong>${Number.isFinite(t.budget?.cores)?usageNumber(t.budget.cores,0)+' cores · '+usageNumber(t.budget.memory_mb,0)+' MB':'Not a saved run'}</strong></div><div><span>Recorded platform</span><strong>${e(t.system)} · ${e(t.architecture)}</strong></div></div><p class="secondary-line">Summary updated ${e(t.updated_at)}<br>Charts saved ${e(data.history_updated_at||'not yet')} · ${t.history_compacted?'History combined into intervals':'Charts saved at most every 30 seconds and at command completion'}</p>${t.partial_process_tree?notice('Some processes could not be read','CPU and RAM values describe only the observed processes.',true):''}${t.progress?.log_gap?notice('Some log output was skipped','The displayed task counts and steps may be incomplete.',true):''}<details class="config-section"><summary>Measurement scope & provenance</summary><div class="padded"><ul>${(t.notes||[]).map(n=>`<li>${e(n)}</li>`).join('')}</ul><p>Virologix ${e(t.app_version)} · Python ${e(t.python)}</p>${t.pipeline?`<p>Pipeline: ${e(S.pipelines[t.pipeline]?.name||t.pipeline)}</p><p class="path-cell">Source commit: ${e(t.commit||'Unavailable')}<br>Configuration SHA-256: ${e(t.config_sha256||'Unavailable')}<br>Workflow SHA-256: ${e(t.workflow_sha256||'Unavailable')}</p>`:''}</div></details></div>`;
+}
+
+function jobLabel(j){return j.kind==='workstation'?'Workstation check':j.kind==='environments'?'Environments · '+j.payload.tool+' · '+j.payload.action:j.kind==='database_download'?'Database · '+j.payload.tool+' · '+j.payload.resource:j.kind==='workflow'?({'dry-run':'Validate run',prepare:'Install environments',run:'Run / resume','check-environments':'Check run environments'}[j.payload.action]||j.payload.action)+' · '+(runBy(j.payload.run_id)?.label||j.payload.run_id):j.kind==='install'?S.pipelines[j.payload.tool]?.name+' · '+j.payload.version.ref:j.kind==='app_update'?'Virologix → v'+j.payload.release.version:j.kind;}
+
+function queueNotice(){
+ const q=S.queue;if(!q?.paused||U.view==='jobs')return '';
+ return `<section class="queue-banner" aria-label="Queue paused"><div><strong>${q.running.length?'Queue paused after current job':'Queue paused'}</strong><p>Waiting and newly submitted jobs will not start until you resume the queue.</p></div>${btn('go-jobs','Review queue')}</section>`;
+}
+function queuePanel(){
+ const q=S.queue;if(!q)return '';
+ const locked=q.update_active;
+ const status=q.paused?(q.running.length?'Finishing current job · queue paused':'Queue paused'):q.waiting.length&&q.held_count===q.waiting.length?'All waiting jobs are held':'Queue enabled';
+ return `<section class="card queue-controls" aria-label="Queue controls"><div class="card-head"><div><h2>${e(status)}</h2><p>${q.running.length} running · ${q.waiting.length-q.held_count} eligible waiting · ${q.held_count} held</p></div>${btn(q.paused?'resume-queue':'pause-queue',q.paused?'Resume queue':q.running.length?'Stop after current job':'Pause queue',true,'','',locked)}</div><div class="padded">${helpDetails('How queue controls work','Pausing lets the current job finish and prevents the next job from starting. Holds and the waiting order are saved across browser and app restarts.')}${q.paused&&q.pause_reason==='interruption'?notice('Review interrupted work before resuming',`${q.recovered.length} attempt(s) were marked interrupted when the worker recovered at ${e(q.recovered_at)}. Review their logs and saved runs below. Resume queue starts only eligible waiting jobs; it never retries interrupted attempts.`,true):''}${locked?notice('Application update in progress','Queue controls are unavailable until this update finishes.'):''}${q.waiting.length?`<ol class="waiting-jobs" aria-label="Waiting order">${q.waiting.map((row,index)=>{const j=S.jobs.find(j=>j.id===row.id);return `<li class="waiting-job" data-waiting-job="${e(row.id)}"><span class="waiting-position">${index+1}</span><div class="waiting-description"><strong>${e(j?jobLabel(j):row.kind)}</strong><small>${e(row.id)}</small>${badge(row.held?'Held':q.paused?'Paused':'Waiting',row.held||q.paused?'amber':'blue')}</div><div class="button-row">${btn(row.held?'release-job':'hold-job',row.held?'Release hold':'Hold job',false,row.id,'',locked)}${btn('queue-up','Move up',false,row.id,'',locked||index===0)}${btn('queue-down','Move down',false,row.id,'',locked||index===q.waiting.length-1)}</div></li>`;}).join('')}</ol><p class="inline-info">Held jobs are skipped until released. Releasing a hold does not resume a paused queue. Reordering does not change a job’s settings or automatically resolve dependencies.</p>`:'<p>No waiting jobs.</p>'}</div></section>`;
+}
+function jobCard(j){return `<div class="job-card" data-job-id="${e(j.id)}"><div><div class="job-title">${e(jobLabel(j))}</div><div class="job-sub">${e(j.id)} · ${e(j.created)}</div>${j.guidance?guidancePanel(j):j.error?`<p class="error">${e(j.error)}</p>`:''}</div><div>${jobStatus(j)}${j.cancel?'<small class="secondary-line">Stop requested</small>':''}</div><div class="button-row">${runBy(j.payload.run_id)?btn('run-detail','Review run',false,j.payload.run_id):''}${j.kind==='workstation'?btn('workstation-detail','Review check',false,j.id):''}${btn('job-log','View log',false,j.id,'file')}${usageButton(j)}${['queued','running'].includes(j.status)&&!(j.kind==='app_update'&&j.status==='running')?btn('cancel-job','Stop',false,j.id,'stop'):''}</div>${jobTelemetry(j)}</div>`;}
+const activeJob=j=>['queued','running'].includes(j.status);
+const jobPipeline=j=>j.payload.tool||runBy(j.payload.run_id)?.tool||S.installs.find(i=>i.id===j.payload.installation)?.tool||'';
+const jobKinds={workflow:'Saved-run workflow',environments:'Environment maintenance',database_download:'Database preparation',install:'Pipeline installation',connect:'Connect installation',check:'Runner check',smoke:'Software check',workstation:'Workstation check',app_update:'Application update'};
+function historyRows(){
+ const query=val('history-search').trim().toLowerCase(),status=val('history-status','all'),pipeline=val('history-pipeline','all'),kind=val('history-kind','all');
+ const rows=S.jobs.filter(j=>!activeJob(j)&&
+  (status==='all'||j.status===status)&&(pipeline==='all'||(jobPipeline(j)||'unassigned')===pipeline)&&(kind==='all'||j.kind===kind)&&
+  [j.id,jobLabel(j),j.kind,j.payload.action,j.payload.run_id,runBy(j.payload.run_id)?.sample?.id,jobPipeline(j),S.pipelines[jobPipeline(j)]?.name].join(' ').toLowerCase().includes(query));
+ return val('history-order','newest')==='oldest'?rows.reverse():rows;
+}
+function historyList(){
+ const all=S.jobs.filter(j=>!activeJob(j)),rows=historyRows(),pages=Math.max(1,Math.ceil(rows.length/25));
+ U.historyPage=Math.max(0,Math.min(U.historyPage||0,pages-1));const start=U.historyPage*25;
+ return `<div class="history-summary"><p role="status">${rows.length?`${start+1}–${Math.min(start+25,rows.length)} of ${rows.length} matching attempts`:'No matching attempts'} · ${all.length} total history</p>${btn('download-history','Download matching history',false,'','download',!rows.length)}</div>${helpDetails('History export contents','Includes every matching page from the displayed workspace snapshot, with job IDs, run labels and timestamps. Review before sharing. Logs, job payloads and configurations are excluded.')}${rows.length?rows.slice(start,start+25).map(jobCard).join(''):empty('No matching job history.',all.length?'Change or clear the history filters.':'Completed, failed, cancelled and interrupted attempts will appear here.')}<div class="history-pagination">${btn('history-page','Previous page',false,String(U.historyPage-1),'',U.historyPage===0)}<span>Page ${U.historyPage+1} of ${pages}</span>${btn('history-page','Next page',false,String(U.historyPage+1),'',U.historyPage+1>=pages)}</div>`;
+}
+function refreshHistory(reset=false){if(!$('#history-list'))return;if(reset)U.historyPage=0;$('#history-list').innerHTML=historyList();renderBusy();}
+function downloadHistory(){
+ const rows=historyRows().map(j=>({id:j.id,kind:j.kind,label:jobLabel(j),status:j.status,pipeline:jobPipeline(j)||null,run_id:j.payload.run_id||null,run_label:runBy(j.payload.run_id)?.label||null,action:j.payload.action||null,created:j.created,started:j.started,finished:j.finished}));
+ download('Virologix-job-history.json',JSON.stringify({schema:1,exported_at:new Date().toISOString(),app_version:S.version,scope:'Matching non-active attempts from the displayed workspace snapshot; not a live status check or a backup.',filters:{search:val('history-search'),status:val('history-status','all'),pipeline:val('history-pipeline','all'),kind:val('history-kind','all'),order:val('history-order','newest')},count:rows.length,jobs:rows},null,2),'application/json');
+}
+function jobs(){
+ const active=S.jobs.filter(activeJob),history=S.jobs.filter(j=>!activeJob(j));
+ return heading('JOBS & PROGRESS','See what’s happening.','Real worker status and process output. Jobs continue when the browser closes.',btn('refresh','Refresh',false,'','clock')+btn('recover-jobs','Start / recover queue'))+queuePanel()+
+ `<section class="card active-jobs" aria-label="Active jobs"><div class="card-head"><div><h2>Active jobs</h2><p>Running and waiting attempts stay visible regardless of history filters.</p></div>${badge(active.length+' active','blue')}</div>${active.length?active.map(jobCard).join(''):'<p class="compact-empty">No running or waiting jobs.</p>'}</section><section class="card job-history" aria-label="Job history"><div class="card-head"><div><h2>Job history</h2><p>Review each attempt separately, including jobs for archived runs.</p></div>${btn('clear-history','Clear history filters')}</div><div class="history-filters">${field('history-search','Search history','','search','placeholder="Job ID, run label, sample ID or action"')}${select('history-status','History status',[['all','All statuses'],...Array.from(new Set(history.map(j=>j.status))).sort().map(s=>[s,s])])}${select('history-pipeline','History pipeline',[['all','All pipelines'],...Object.entries(S.pipelines).map(([k,p])=>[k,p.name]),['unassigned','App / unassigned']])}${select('history-kind','Job type',[['all','All job types'],...Array.from(new Set(history.map(j=>j.kind))).sort().map(k=>[k,jobKinds[k]||k])])}${select('history-order','History order',[['newest','Newest submitted first'],['oldest','Oldest submitted first']])}</div><div id="history-list" tabindex="-1">${historyList()}</div></section>`;
+}
+function reportsPage(){const rows=S.reports.filter(r=>!U.reportRun||r.run===U.reportRun);return heading('RESULTS & REPORTS','From a run to its results.','Open native pipeline HTML reports directly in your workspace.',btn('register-report','Add existing report',true,'','plus'))+resultRunCards()+
+`${U.reportRun?`<div class="selection-bar">Reports for ${e(runBy(U.reportRun)?.label||U.reportRun)} ${btn('all-reports','Show all reports')}</div>`:''}<section class="card">${rows.length?`<div class="table-wrap"><table><thead><tr><th>Report</th><th>Sample</th><th>Run</th><th>Run status</th><th>Open</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${e(r.name)}</strong><span class="secondary-line path-cell">${e(r.path)}</span></td><td>${e(r.sample)}</td><td>${e(r.run)}</td><td>${statusBadge(r.run_status||'User-selected')}</td><td>${btn('open-report','Open report',true,r.id,'external')}</td></tr>`).join('')}</tbody></table></div>`:empty('No reports found here yet.','Reports appear when the native workflow writes them. You can also register an existing local HTML report.',btn('register-report','Add report'))}</section>`;}
+function defaultEditor(tool=U.tool){return U.defaultEditors?.[tool];}
+function defaultsDirty(c){return !!c&&(Object.keys(c.changes).length>0||c.text!==c.savedText);}
+function editorUI(c=runEditor()){
+ if(c?.scope!=='defaults')return U;
+ U.defaultUI ||= {};return U.defaultUI[c.tool] ||= {runConfigTab:'settings',runSettingTab:{},runConfigGroup:{}};
+}
+function editorSearchId(c){return c.scope==='defaults'?'default-setting-search-'+c.tool:'run-setting-search';}
+function editorRoot(c){return c.scope==='defaults'?$('.defaults-editor'):$('.run-wizard');}
+function renderEditor(){render();}
+function requestEditor(view,validate=false,extra={}){
+ const c=runEditor();if(!c)return;
+ request(c.scope==='defaults'?'default_config_editor':'run_config_editor',{...runConfigPayload(),view,validate,...(c.scope==='defaults'?{revision:c.revision}:{}),...extra});
+}
+function updateDefaultStatus(){const c=defaultEditor(),status=$('#default-save-status');if(c&&status)status.textContent=defaultsDirty(c)?'Unsaved changes':'Saved defaults';}
+function configuration(){
+ const t=U.tool,c=defaultEditor(t),ui=c?editorUI(c):null,stale=!!c&&c.revision!==S.databases[t].revision;
+ let body='';
+ if(!c)body='<div class="padded"><p>Loading saved configuration…</p></div>';
+ else if(ui.runConfigTab==='yaml')body=runSettingTabs(c)+`<div class="guided-panel"><div class="settings-intro"><div><h3>Full configuration</h3><p>Import or edit native YAML, including custom keys. Save defaults when you are ready.</p></div>${btn('run-config-tab','Back to controls',false,'settings')}</div>${area('config-yaml-'+t,'Full configuration',c.text,'spellcheck="false" rows="20" data-run-yaml="'+t+'"')}</div>`;
+ else body=runSettingsPanel(c);
+ return heading('CONFIGURATION','Your defaults, your settings.','Choose the settings future run drafts start with. Each saved run keeps its own configuration.')+
+ `<div class="tabs configuration-pipelines">${Object.keys(S.pipelines).map(x=>`<button class="tab ${t===x?'active':''}" data-action="config-tool" data-id="${x}">${S.pipelines[x].name}${defaultsDirty(defaultEditor(x))?'<span class="unsaved-dot" aria-label="Unsaved changes"></span>':''}</button>`).join('')}</div><section class="card defaults-editor"><div class="defaults-header"><div><strong>${e(S.pipelines[t].name)} defaults</strong><p>Category tabs for everyday changes. Advanced contains every setting.</p></div>${badge('Future runs','green')}</div><div class="defaults-toolbar"><div class="button-row"><label class="btn upload-label">${icon('file')}Import YAML<input type="file" id="yaml-upload" accept=".yaml,.yml" class="visually-hidden" ${!c?'disabled':''}></label>${btn('download-yaml','Download YAML',false,'','download',!c)}${btn('check-run-config','Check settings',false,'','check',!c)}</div>${btn('reload-run-defaults','Reload saved defaults',false,'','',!c)}</div>${stale?notice('Saved defaults changed','Download your edits to keep a copy, then reload saved defaults before saving. New database selections or changes from another window are protected.',true):''}<div class="defaults-content">${body}</div><div class="defaults-footer"><div><strong id="default-save-status">${defaultsDirty(c)?'Unsaved changes':'Saved defaults'}</strong><p>Changes apply to future drafts. Existing runs keep their saved settings.</p></div>${btn('save-config','Save defaults',true,t,'check',!c||stale)}</div></section>`;
+}
+function runEditor(){return wizardKind()==='edit-run'?U.revisionConfig:wizardKind()==='new-run'?U.runConfigs?.[val('run-tool','flupop')]:U.view==='configure'?defaultEditor():U.runConfigs?.[val('run-tool','flupop')];}
+function runFieldValue(c,f){return Object.hasOwn(c.changes,f.key)?c.changes[f.key]:f.kind==='yaml'?f.yaml:f.value;}
+function runConfigPayload(){const c=runEditor();return c?{tool:c.tool,text:c.text,changes:c.changes}:null;}
+function editRunField(c,f,value){
+ c.changes[f.key]=value;
+ const get=name=>c.fields.find(x=>x.name===name),put=(name,v)=>{const row=get(name);if(row)c.changes[row.key]=v;};
+ if(c.tool==='hybas'&&f.name==='run_kraken'){
+  if(!value)put('kraken_decision_mode','off');
+  else if(runFieldValue(c,get('kraken_decision_mode'))==='off')put('kraken_decision_mode','aware');
+ }
+ if(c.tool==='hybas'&&f.name==='kraken_decision_mode')put('run_kraken',value!=='off');
+ updateDefaultStatus();
+ const counter=editorRoot(c)?.querySelector('[data-edited-count]');if(counter)counter.textContent=Object.keys(c.changes).length+' edited settings';
+ for(const b of editorRoot(c)?.querySelectorAll('[data-action="reset-run-field"]')||[])b.disabled=!Object.hasOwn(c.changes,b.dataset.id);
+}
+function runSetting(c,f,index,guided=false,label=f.label,help=f.help){
+ const value=runFieldValue(c,f),id=(c.scope==='defaults'?'default-setting-'+c.tool+'-':'run-setting-')+index;
+ const attrs=`id="${id}" data-run-field="${e(f.key)}" data-run-name="${e(f.name)}" aria-label="${e(guided?label:f.label+' ('+f.name+')')}"`;
+ let control='';
+ if(f.managed){
+  let managed='Assigned when the draft is created';
+  if(['threads','execution.cores'].includes(f.name))managed='Controlled by CPU cores per run above';
+  if(['memory_mb','execution.memory_mb'].includes(f.name))managed='Controlled by Memory budget above';
+  if(c.scope==='defaults')managed='Assigned for each run when its draft is created';
+  control=`<p class="run-managed-value">${e(managed)}</p>`;
+ }else if(f.kind==='boolean')control=`<label class="run-toggle"><input type="checkbox" role="switch" ${attrs} ${value?'checked':''}><span>${value?'On':'Off'}</span></label>`;
+ else if(f.kind==='select'){
+  const labels={off:'Off',aware:'AWARE',auto:'Auto',manual:'Manual',none:'None',racon:'Racon',medaka:'Medaka',tripolish:'Tripolish'};
+  const options=f.options.includes(value)?f.options:[value,...f.options];
+  control=`<select ${attrs}>${options.map(x=>`<option value="${e(x)}" ${x===value?'selected':''}>${e(labels[x]||x)}</option>`).join('')}</select>`;
+ }else if(f.kind==='yaml')control=`<textarea ${attrs} rows="${value?.includes('\n')?4:2}" spellcheck="false">${e(value)}</textarea>`;
+ else control=`<input ${attrs} type="${['integer','number','optional_integer'].includes(f.kind)?'number':'text'}" ${f.kind==='number'?'step="any"':f.kind.includes('integer')?'step="1"':''} value="${e(value??'')}" ${f.kind.startsWith('optional_')?'placeholder="Automatic / not set"':''}>`;
+ if(guided)return `<div class="guided-field field ${f.kind==='boolean'?'switch-card':''}"><div><label for="${id}">${e(label)}</label>${help?`<p>${e(help)}</p>`:''}</div>${control}</div>`;
+ return `<div class="run-setting field" data-run-search="${e((f.name+' '+f.label+' '+f.group).toLowerCase())}" data-setting-group="${e(f.group)}"><div class="run-setting-heading"><label for="${id}">${e(f.label)}</label>${!f.managed?btn('reset-run-field','Reset edit',false,f.key,'',!Object.hasOwn(c.changes,f.key)):badge('Managed')}</div><small class="run-setting-key">${e(f.name)}</small>${control}${f.help?`<small>${e(f.help)}</small>`:''}${!f.included&&!f.managed?`<small>Available default · added to ${c.scope==='defaults'?'saved defaults':'this draft'} only when edited.</small>`:''}${f.kind==='yaml'&&!f.managed?'<small>YAML value: use null for unset values, [] for lists, or {} for mappings.</small>':''}</div>`;
+}
+function filterRunSettings(){
+ const c=runEditor();if(!c)return;const owner=editorRoot(c);if(!owner)return;
+ const q=val(editorSearchId(c),'').toLowerCase().trim(),group=editorUI(c).runConfigGroup?.[c.tool]||c.groups[0];
+ let count=0;
+ for(const row of owner.querySelectorAll('[data-run-search]')){row.hidden=q?!row.dataset.runSearch.includes(q):row.dataset.settingGroup!==group;if(!row.hidden)count++;}
+ for(const section of owner.querySelectorAll('[data-run-section]'))section.hidden=![...section.querySelectorAll('[data-run-search]')].some(r=>!r.hidden);
+ const empty=owner.querySelector('[data-settings-empty]');if(empty)empty.hidden=count>0;
+ for(const b of owner.querySelectorAll('[data-action="run-setting-group"]')){b.classList.toggle('active',!q&&b.dataset.id===group);b.setAttribute('aria-pressed',String(!q&&b.dataset.id===group));}
+}
+function advancedRunSettings(c){
+ const group=editorUI(c).runConfigGroup?.[c.tool]||c.groups[0];
+ return `<div class="run-settings-toolbar"><div class="field">${field(editorSearchId(c),c.scope==='defaults'?'Search all settings':'Search run settings','','search','placeholder="Input, demo, memory…"')}</div><span data-edited-count>${Object.keys(c.changes).length} edited settings</span>${c.scope==='defaults'?'':btn('reload-run-defaults',wizardKind()==='edit-run'?'Reset to saved run':'Reload saved defaults',false,'','config')}</div><div class="run-settings-layout"><nav class="run-settings-nav" aria-label="Configuration sections">${c.groups.map(g=>`<button type="button" class="${group===g?'active':''}" data-action="run-setting-group" data-id="${e(g)}">${e(g)}<span>${c.fields.filter(f=>f.group===g).length}</span></button>`).join('')}</nav><div class="run-settings-fields">${c.groups.map(g=>`<section data-run-section="${e(g)}"><h3>${e(g)}</h3><div class="run-settings-grid">${c.fields.map((f,i)=>f.group===g?runSetting(c,f,i):'').join('')}</div></section>`).join('')}<p data-settings-empty hidden>No settings match this search.</p></div></div>`;
+}
+const guidedTabs={flupop:[['advanced','Settings','config']],micpscope:[['advanced','Settings','config']],hybas:[['kraken','Kraken & AWARE','branch'],['assembly','Assembly','samples'],['quality','Quality','check'],['databases','Databases','resources'],['advanced','Advanced','config']],basis:[['modules','Modules','samples'],['aware','AWARE','branch'],['deep','DeepSafe','check'],['resources','Resources','resources'],['advanced','Advanced','config']]};
+function runGuideField(c,name,label,help){const i=c.fields.findIndex(f=>f.name===name);return i<0?'':runSetting(c,c.fields[i],i,true,label||c.fields[i].label,help??'');}
+function runChoiceCards(c,name,choices){
+ const f=c.fields.find(f=>f.name===name);if(!f||f.managed)return '';
+ const enabled=c.fields.find(x=>x.name==='run_kraken');
+ const value=c.tool==='hybas'&&name==='kraken_decision_mode'&&enabled&&!runFieldValue(c,enabled)?'off':runFieldValue(c,f);
+ return `<div class="mode-cards" role="group" aria-label="${e(f.label)}">${choices.map(([v,label,desc])=>`<button type="button" class="mode-card ${value===v?'selected':''}" data-action="run-choice" data-id="${e(f.key)}" data-value="${e(v)}" data-choice-name="${e(name)}" aria-pressed="${value===v}"><span class="mode-card-top"><strong>${e(label)}</strong><span class="choice-mark">${value===v?icon('check'):''}</span></span><span>${e(desc)}</span></button>`).join('')}</div>`;
+}
+function runSettingTabs(c){
+ const tab=editorUI(c).runSettingTab?.[c.tool]||guidedTabs[c.tool][0][0];
+ return `<div class="settings-tabs" aria-label="Run settings categories">${guidedTabs[c.tool].map(([id,label,ico])=>`<button type="button" class="settings-tab ${id===tab?'active':''}" data-action="guided-run-tab" data-id="${id}" aria-pressed="${id===tab}">${icon(ico)}${label}</button>`).join('')}</div>`;
+}
+function runSettingsPanel(c){
+ const defaults=c.scope==='defaults',tab=editorUI(c).runSettingTab?.[c.tool]||guidedTabs[c.tool][0][0],v=name=>{const f=c.fields.find(f=>f.name===name);return f?runFieldValue(c,f):null;};
+ const fields=items=>`<div class="guided-grid">${items.map(x=>runGuideField(c,...x)).join('')}</div>`;
+ const intro=(title,desc,tag='')=>`<div class="settings-intro"><div><h3>${title}</h3><p>${desc}</p></div>${tag?badge(tag,'green'):''}</div>`;
+ let content='';
+ if(tab==='advanced')content=`${intro('Every setting, when you need it.','Search all native options, or edit the full configuration including custom keys.')}<div class="advanced-actions">${btn('run-config-tab','Full YAML',false,'yaml','file')}</div>${advancedRunSettings(c)}`;
+ else if(c.tool==='hybas'&&tab==='kraken'){
+  content=intro('Choose how Kraken is used.',defaults?'Choose the starting mode for future drafts.':'Pick a mode for these drafts. Your saved settings remain unchanged.',v('run_kraken')&&v('kraken_decision_mode')!=='off'?'Kraken enabled':'Kraken off')+runChoiceCards(c,'kraken_decision_mode',[
+   ['off','Off','Skip Kraken for this run.'],['manual','Manual','Use a specified target taxon.'],['auto','Auto','Use the native Auto rules.'],['aware','AWARE','Use the native AWARE rules.']]);
+  content+=fields([['target_taxid','Target taxon ID','Optional unless required by the selected mode or configuration.'],['kraken_mem_mb','Kraken memory (MB)','Leave blank for the pipeline estimate.']]);
+  content+=`<div class="settings-tip">${icon('info')}<span>Mode selection keeps the Kraken on/off switch in sync. Decision thresholds and additional options are available in Advanced.</span></div>`;
+ }else if(c.tool==='hybas'&&tab==='assembly'){
+  content=intro('Assembly & polishing','Choose a strategy, then adjust its settings.')+runChoiceCards(c,'polish_mode',[
+   ['none','None','Keep the baseline assembly.'],['racon','Racon','Racon polishing.'],['medaka','Medaka','Medaka polishing.'],['tripolish','Tripolish','Native multi-step polishing.']]);
+  content+=fields([...(v('polish_mode')==='racon'||v('polish_mode')==='tripolish'?[['racon_rounds','Racon rounds']]:[]),...(v('polish_mode')==='medaka'||v('polish_mode')==='tripolish'?[['medaka_model','Medaka model','Leave blank to retain native model selection.']]:[]),['run_polypolish','Polypolish','Keep this stage enabled where the selected read mode supports it.'],['keep_percent','Reads to retain (%)']]);
+  content+=`<details class="guided-details"><summary>Assembly memory limits</summary>${fields([['assembly_mem_mb','Assembly memory (MB)'],['polishing_mem_mb','Polishing memory (MB)'],['spades_memory_gb','SPAdes memory (GB)']])}</details><p class="settings-note">The native dry-run checks the strategy against each sample’s read mode.</p>`;
+ }else if(c.tool==='hybas'&&tab==='quality'){
+  content=intro('Quality checks & annotation',defaults?'Choose the starting options for future drafts.':'Choose the outputs to include in these drafts.')+fields([['run_busco','BUSCO','Assembly completeness checks.'],['run_prokka','Prokka','Genome annotation.'],['run_multiqc','MultiQC','Combined quality report.'],['min_fasta_length','Minimum sequence length','Length threshold passed to the native workflow.']]);
+ }else if(c.tool==='hybas'&&tab==='databases'){
+  content=intro(defaults?'Default database locations':'Database locations for this run',wizardKind()==='edit-run'?'These are the database locations saved with this run.':defaults?'Saved locations are inherited by future drafts.':'These values start from your saved database selections.')+fields([['db_root','Database root folder','Base folder containing the database layout.'],['kraken_db_name','Kraken database folder','Folder name or path used by HybAs AWARE.'],['busco_lineage','BUSCO lineage','Lineage name or path used by HybAs AWARE.']]);
+  content+=`<div class="settings-tip">${icon('folder')}<span>${defaults?'Discover or download databases in Databases & models. Save defaults to use these paths in future drafts.':'Discover or download databases in Databases & models. Your unfinished draft is retained; its settings stay unchanged until you edit them here.'}</span></div>`;
+ }else if(c.tool==='basis'&&tab==='modules'){
+  const modules=c.fields.filter(f=>f.name.startsWith('modules.')&&f.name.endsWith('.enabled')&&f.kind==='boolean');
+  content=intro('Build your analysis',defaults?'Choose which modules future drafts start with.':'Switch modules on or off for these drafts.',modules.filter(f=>runFieldValue(c,f)).length+' enabled')+`<div class="guided-grid module-grid">${modules.map(f=>runGuideField(c,f.name,f.group.replace('Module: ',''),'')).join('')}</div><p class="settings-note">Module databases, tool options and per-module resources are available in Advanced.</p>`;
+ }else if(c.tool==='basis'&&tab==='aware'){
+  content=intro('BaSIS AWARE','Presets control review selection; AMRFinder native reporting thresholds stay unchanged.')+fields([['deep.aware.enabled','Enable AWARE',defaults?'Starting setting for future drafts.':'Use AWARE for these drafts.']])+runChoiceCards(c,'deep.aware.preset',[
+   ['auto-strict','Strict','More restrictive selection policy.'],['auto-medium','Medium','Intermediate selection policy.'],['auto-loose','Loose','Broader selection policy.']])+`<p class="settings-note">Custom queue and tool settings remain available in Advanced.</p>`;
+ }else if(c.tool==='basis'&&tab==='deep'){
+  content=intro('DeepSafe','Optional settings are inherited from your saved configuration.')+fields([['deep.enabled','Enable DeepSafe','Include the DeepSafe workflow.'],['extend','Extend','Use the native Extend setting.'],['deep.threads','DeepSafe threads'],['deep.memory_mb','DeepSafe memory (MB)']])+`<p class="settings-note">Additional DeepSafe options and reference paths are available in Advanced.</p>`;
+ }else if(c.tool==='basis'&&tab==='resources'){
+  content=intro('Resources & storage','Choose how resources are supplied and where results are retained.')+runChoiceCards(c,'resources.policy',[
+   ['auto','Automatic','Allow native resource preparation.'],['manual','Manual','Use the resources you supply.']])+fields([['resources.directory','Resources folder'],['storage.native_results_directory','Native results folder','Optional. Leave blank to use the pipeline location.']]);
+ }
+ return runSettingTabs(c)+`<div class="guided-panel">${content}</div>`;
+}
+function runReview(c,chosen,budget={cores:val('run-cores',S.resource_defaults?.[c.tool]?.cores??4),memory_mb:val('run-memory',S.resource_defaults?.[c.tool]?.memory_mb??16000)}){
+ const v=name=>{const f=c.fields.find(f=>f.name===name);return f?runFieldValue(c,f):'—';};
+ const pairs=c.tool==='flupop'?[['Inputs','Supplied consensus and reviewed records'],['Synthetic demo',v('synthetic_demo')?'On':'Off']]:c.tool==='micpscope'?[['Input','Annotated protein FASTA'],['Workflow','Protein properties + report']]:c.tool==='hybas'?[['Kraken mode',v('run_kraken')?v('kraken_decision_mode'):'off'],['Polishing',v('polish_mode')],['BUSCO',v('run_busco')?'On':'Off'],['Prokka',v('run_prokka')?'On':'Off'],['MultiQC',v('run_multiqc')?'On':'Off']]:[['Enabled modules',c.fields.filter(f=>f.name.startsWith('modules.')&&f.name.endsWith('.enabled')&&runFieldValue(c,f)===true).length],['AWARE',v('deep.aware.enabled')?'On':'Off'],['DeepSafe',v('deep.enabled')?'On':'Off']];
+ return `<div class="settings-intro"><div><h3>Ready to create your drafts?</h3><p>Each sample gets its own saved run. Nothing starts until you launch it.</p></div></div><div class="review-stats"><div><span>Samples</span><strong>${chosen.length}</strong></div><div><span>CPU per run</span><strong data-review-budget="cores">${e(budget.cores)} cores</strong></div><div><span>Memory per run</span><strong data-review-budget="memory">${e(budget.memory_mb)} MB</strong></div></div><dl class="review-settings">${pairs.map(([k,v])=>`<div><dt>${e(k)}</dt><dd>${e(v)}</dd></div>`).join('')}</dl><div class="review-samples">${chosen.map(s=>`<div>${icon('samples')}<strong>${e(s.id)}</strong><span>${e(s.mode.replaceAll('_',' '))}</span></div>`).join('')||'<p>No samples selected. Return to Samples to choose one.</p>'}</div><p class="settings-note">Saved defaults and existing runs are unchanged. Check each new draft with a native dry-run before preparing tools or running it.</p>`;
+}
+function wizardPage(){
+ if(!U.wizard)return heading('RUN DRAFT','No unfinished draft.','Start a new draft from your registered samples.',btn('new-run','Create run drafts',true));
+ const revision=U.wizard.kind==='edit-run',c=runEditor(),tab=U.runConfigTab||'samples';
+ const empty=!c||(!revision&&!S.samples.some(s=>val('run-sample-'+s.id,false)));
+ const ready=revision||!!activeInstall(val('run-tool','flupop'))?.ready;
+ const next=tab==='review'?btn(revision?'save-run-revision':'create-runs',revision?(U.revision?.variant?'Create variant':'Create revised draft'):'Create drafts',true,'','check',empty||!ready):btn('run-config-tab',tab==='samples'?'Continue to settings':'Review drafts',true,tab==='samples'?'settings':'review','arrow',empty);
+ return heading(revision?(U.revision?.variant?'RESULT VARIANT':'REVISE RUN'):'NEW RUN',revision?(U.revision?.variant?'Branch from existing results':'Edit run settings'):'Create run drafts',revision?(U.revision?.variant?'Keep existing tool selections; change only what you want to vary. Eligible results are inherited into an isolated branch.':'Save a separate revision of this run.'):'Samples → Settings → Review. Save your choices before starting any work.',btn('leave-wizard','Save & exit'))+
+  (U.wizardRecovered?notice('Recovered unfinished edits','Your selection and settings were recovered from this browser tab. Review them before creating a run.'):'' )+
+  (!ready?notice('Pipeline runner needs setup','Finish setup for the selected pipeline before creating drafts. You can keep editing here.',true):'')+
+  `<section class="card run-wizard">${revision?renderRunRevision():renderNewRun()}<div class="wizard-footer"><div><strong id="wizard-save-status">${e(wizardSaveStatus())}</strong><p>Closing this tab may clear recovery. Saved runs are stored in your workspace.</p></div><div class="button-row">${btn('discard-wizard','Discard edits')}${tab!=='samples'&&!(revision&&tab==='settings')?btn('run-config-tab','Back',false,tab==='review'?'settings':'samples'):''}${next}</div></div></section>`;
+}
+function renderNewRun(){
+ const tool=val('run-tool','flupop'),c=runEditor(),tab=U.runConfigTab||'samples',chosen=S.samples.filter(s=>val('run-sample-'+s.id,false));
+ let body=(tool==='micpscope'?notice('MICP Scope inputs','Register a folder containing annotation/&lt;sample_id&gt;.faa. Optional files in the same folder: &lt;sample_id&gt;.evidence.csv, &lt;sample_id&gt;.gff (coordinates), &lt;sample_id&gt;.interpro.tsv (existing signatures). Read mode does not affect this workflow.'):'')+`<div class="run-draft-intro"><strong>Your run, your settings.</strong><span>Start with saved defaults. Customize only the drafts you create here.</span></div><div class="form-grid run-budget-grid">${select('run-tool','Pipeline',Object.keys(S.pipelines).map(t=>[t,S.pipelines[t].name]),'flupop')}${field('run-cores','CPU cores per run',S.resource_defaults?.[tool]?.cores??Math.min(4,S.doctor.cpus||1),'number','min="1" max="512"')}${field('run-memory','Memory budget (MB)',S.resource_defaults?.[tool]?.memory_mb??16000,'number','min="512" max="2000000" step="512"')}</div><div class="tabs run-config-tabs">${[['samples','Samples'],['settings','Run settings'],['review','Review']].map(([id,label],i)=>`<button type="button" class="tab ${(tab==='yaml'?'settings':tab)===id?'active':''}" data-action="run-config-tab" data-id="${id}" ${!c?'disabled':''}><span class="step-number" aria-hidden="true">${i+1}</span>${label}</button>`).join('')}</div>`;
+ if(!c)return body+'<p>Loading saved configuration…</p>';
+ if(tab==='samples')body+=`<h3>Select samples</h3><p class="inline-info">These samples receive the same settings. Removing a sample also moves its inactive saved runs to Archived; files and reports are kept.</p>${S.samples.length?S.samples.map(s=>`<div class="sample-choice"><label class="source-card"><input type="checkbox" id="run-sample-${e(s.id)}" data-sample="${e(s.id)}" ${val('run-sample-'+s.id,false)?'checked':''}><span><strong>${e(s.id)}</strong><small>${e(s.path)}</small></span></label>${btn('remove-sample','Remove sample',false,s.id,'trash')}</div>`).join(''):empty('Add a sample first.','Register the folder containing your original inputs.',btn('new-sample','Add sample'))}`;
+ else if(tab==='settings')body+=runSettingsPanel(c);
+ else if(tab==='review')body+=runReview(c,chosen);
+ else body+=`${runSettingTabs(c)}<div class="guided-panel"><div class="settings-intro"><div><h3>Full configuration</h3><p>Edit custom keys or paste your existing YAML. Returning to the controls checks its format.</p></div>${btn('run-config-tab','Back to controls',false,'settings')}</div>${area('run-yaml-'+tool,'Run configuration YAML',c.text,'spellcheck="false" rows="18" data-run-yaml="'+tool+'"')}</div>`;
+ body+=`<div class="run-draft-summary"><span>${chosen.length} sample${chosen.length===1?'':'s'} selected · ${e(S.pipelines[tool].name)} · Settings apply to these drafts only</span>${btn('check-run-config','Check settings',false,'','check')}</div>`;
+ return body;
+}
+function renderRunRevision(){
+ const r=U.revision,c=runEditor(),tab=U.runConfigTab||'settings';if(!r||!c)return '<p>Loading saved run settings…</p>';
+ let body=(r.tool==='micpscope'?notice('MICP Scope inputs','Register a folder containing annotation/&lt;sample_id&gt;.faa. Optional files in the same folder: &lt;sample_id&gt;.evidence.csv, &lt;sample_id&gt;.gff (coordinates), &lt;sample_id&gt;.interpro.tsv (existing signatures). Read mode does not affect this workflow.'):'')+`<div class="run-draft-intro"><strong>Revise ${e(r.sample.id)}</strong><span>Start from this run’s saved settings. Saving creates a separate draft with the same inputs.</span></div><div class="revision-source">${badge(S.pipelines[r.tool].name,'blue')}<span>${e(r.id)}</span>${badge(r.sample.mode.replaceAll('_',' '))}</div><div class="form-grid revision-budget">${field('revision-cores','CPU cores per run',r.cores,'number','min="1" max="512"')}${field('revision-memory','Memory budget (MB)',r.memory_mb,'number','min="512" max="2000000" step="512"')}</div><div class="tabs run-config-tabs">${[['settings','Run settings'],['review','Review']].map(([id,label])=>`<button type="button" class="tab ${(tab==='yaml'?'settings':tab)===id?'active':''}" data-action="run-config-tab" data-id="${id}">${label}</button>`).join('')}</div>`;
+ if(tab==='review')body+=runReview(c,[r.sample],{cores:val('revision-cores',r.cores),memory_mb:val('revision-memory',r.memory_mb)});
+ else if(tab==='yaml')body+=`${runSettingTabs(c)}<div class="guided-panel"><div class="settings-intro"><div><h3>Full configuration</h3><p>Custom keys are preserved. Generated paths are assigned to the new draft.</p></div>${btn('run-config-tab','Back to controls',false,'settings')}</div>${area('run-yaml-'+c.tool,'Run configuration YAML',c.text,'spellcheck="false" rows="18" data-run-yaml="'+c.tool+'"')}</div>`;
+ else body+=runSettingsPanel(c);
+ return body+`<div class="run-draft-summary"><span>Original run and saved defaults stay unchanged.</span>${btn('check-run-config','Check settings',false,'','check')}</div>`;
+}
+function runMethods(r){
+ const m=U.methods?.id===r.id?U.methods:null;
+ let body=`<div class="settings-intro"><div><h3>Methods for your publication</h3><p>Generated from this run’s frozen settings and available execution records.</p></div>${btn('refresh-methods',m?'Refresh Methods':'Generate Methods',false,r.id,'clock')}</div>`;
+ if(!m)return body+'<p class="settings-note">Generate a preview to review and download. No analysis or database download is started.</p>';
+ body+=`<section class="methods-export"><div class="methods-status">${badge(m.state,m.state==='Completed workflow'?'green':'amber')}<span>${e(m.evidence_origin)}</span></div><div class="button-row methods-downloads">${btn('methods-download-txt','Download text',true,r.id,'download')}${btn('methods-download-md','Markdown',false,r.id,'download')}${btn('methods-download-html','Printable HTML',false,r.id,'download')}${btn('methods-download-zip','Reproducibility ZIP',false,r.id,'download')}</div><p class="settings-note">The ZIP includes Methods, frozen YAML, settings, recorded evidence and the pipeline citation when available. Exports contain sample identifiers and local paths; review them before sharing.</p><article class="methods-prose" aria-label="Methods preview">${m.paragraphs.map(p=>`<p>${e(p)}</p>`).join('')}</article><details class="guided-details publication-notes"><summary>Review before publication · ${m.warnings.length} notes</summary><ul class="methods-notes">${m.warnings.map(w=>`<li>${e(w)}</li>`).join('')}</ul></details><details class="guided-details"><summary>Recorded execution</summary><div class="padded">${m.execution.map(p=>`<p>${e(p)}</p>`).join('')}</div></details><details class="guided-details"><summary>Software versions</summary><div class="table-wrap"><table><thead><tr><th>Software</th><th>Recorded version</th><th>Scope</th></tr></thead><tbody>${m.software.map(x=>`<tr><td>${e(x.tool)}</td><td>${e(x.version)}</td><td>${e(x.scope)}</td></tr>`).join('')}</tbody></table></div></details><p class="settings-note">Generated ${e(m.generated_at)} · Template v${e(m.generator_version)} · <a href="${e(safeURL(m.citation_url))}" target="_blank" rel="noopener noreferrer">Pinned pipeline source ↗</a></p></section>`;
+ return body;
+}
+function savedValue(value){
+ if(typeof value==='boolean')return badge(value?'On':'Off',value?'green':'');
+ if(value===null||value==='')return '<span class="saved-unset">Not set</span>';
+ const labels={off:'Off',aware:'AWARE',auto:'Auto',manual:'Manual',none:'None',racon:'Racon',medaka:'Medaka',tripolish:'Tripolish'};
+ return e(typeof value==='object'?JSON.stringify(value):Object.hasOwn(labels,value)?labels[value]:value);
+}
+function savedFields(fields,fullNames=false){
+ return `<dl class="saved-settings-grid">${fields.map(f=>`<div class="saved-setting"><dt>${e(f.name.startsWith('modules.')&&f.name.endsWith('.enabled')?f.group.replace('Module: ',''):f.label)}</dt><dd data-saved-setting="${e(f.name)}">${savedValue(f.value)}</dd>${fullNames?`<small>${e(f.name)}</small>`:''}</div>`).join('')}</dl>`;
+}
+function runReadiness(r,d){
+ const p=d.readiness;if(!p)return '';
+ const next=p.next,disabled=r.busy||r.archived,validated=p.validated&&!p.blocked;
+ const actionText={review:'Review the items that need attention.', 'dry-run':'Next: validate this run.', 'check-environments':'Next: check this run’s environment cache.',prepare:'Next: review the missing environments.',run:'Listed environments are available. Execution checks them again.'};
+ return `<section class="run-readiness" aria-label="Run checks"><div class="readiness-heading"><h3>Run checks</h3>${btn('run-detail','Refresh checks',false,r.id,'clock',r.busy)}</div><p class="readiness-next">${e(actionText[next])}</p><div class="button-row saved-run-actions">${r.archived?btn('restore-run','Restore run',true,r.id,'arrow'):btn('dry-run','Validate run',next==='dry-run',r.id,'check',disabled||p.blocked)}${btn('check-run-environments','Check environments',next==='check-environments',r.id,'check',disabled||!validated)}${btn('prepare','Install environments',next==='prepare',r.id,'download',disabled||!validated)}${btn('run','Run / resume',next==='run',r.id,'play',disabled||!validated||p.execution_blocked||p.missing_environments>0)}${btn('view-results','View results',false,r.id,'file')}</div><p class="readiness-policy">Run / resume reuses matching environments. Installation happens only when you choose Install environments.</p><div class="readiness-grid">${p.rows.map(x=>`<div class="readiness-item ${e(x.level)}" data-readiness="${e(x.id)}"><div><strong>${e(x.title)}</strong>${badge(x.state,x.level==='good'?'green':x.level==='error'?'red':x.level==='warning'?'amber':'')}</div><p>${e(x.text)}</p>${x.checked_at?`<small>Checked ${e(new Date(x.checked_at).toLocaleString())}</small>`:''}${x.action==='budget'&&r.run_type!=='followup'?quiet('edit-run-settings','Review run budget',r.id):''}${x.id==='pipeline'?quiet('go-install','Open setup'):''}${x.id==='databases'&&r.run_type!=='followup'?quiet('saved-run-tab','Review saved paths','databases'):''}</div>`).join('')}</div>${p.destinations?.length?`<details class="guided-details"><summary>Checked destinations</summary>${p.destinations.map(x=>`<div class="readiness-environment"><strong>${e(x.label)}</strong><code>${e(x.path)}</code><span>${e(x.text)}</span></div>`).join('')}</details>`:''}${p.environments.length?`<details class="guided-details"><summary>Listed tool environments · ${p.environments.length}</summary>${p.environments.map(x=>`<div class="readiness-environment"><strong>${e(x.name)}</strong>${badge(x.state,x.state==='Available'?'green':'amber')}<code>${e(x.path)}</code></div>`).join('')}</details>`:''}</section>`;
+}
+function renderSavedRun(r,d){
+ const c=d.settings,tabs=[['overview','Overview','home'],...(r.run_type==='followup'?[['advanced','Advanced','config']]:guidedTabs[r.tool]),['activity','Activity','jobs'],['results','Results','file'],['methods','Methods','file']];
+ let tab=U.runDetailTab||'overview';if(!tabs.some(t=>t[0]===tab)){tab='overview';U.runDetailTab=tab;writeRoute(true);}
+ const included=c.fields.filter(f=>f.included),settings=included.filter(f=>!f.managed);
+ const core=['overview','activity','results','methods'],tabButton=([id,label,ico])=>`<button type="button" class="settings-tab ${tab===id?'active':''}" data-action="saved-run-tab" data-id="${id}" aria-pressed="${tab===id}">${icon(ico)}${label}</button>`;
+ let body=`<div class="detail-pills">${badge(S.pipelines[r.tool].name,'blue')}${r.archived?badge('Archived'):statusBadge(r.status)}${badge(d.readiness?.validated?'Native dry-run passed':'Needs validation',d.readiness?.validated?'green':'amber')}</div><div class="settings-tabs saved-run-tabs primary-run-tabs" aria-label="Saved run sections">${core.map(id=>tabButton(tabs.find(t=>t[0]===id))).join('')}</div><details class="saved-settings-nav" ${!core.includes(tab)?'open':''}><summary>Saved configuration${!core.includes(tab)?' · '+e(tabs.find(t=>t[0]===tab)?.[1]):''}</summary><div class="settings-tabs saved-run-tabs" aria-label="Saved configuration sections">${tabs.filter(t=>!core.includes(t[0])).map(tabButton).join('')}</div></details>`;
+
+ if(tab==='overview'){
+  const transition=r.followup_transition;if(transition)body+=notice('Recorded follow-up source','Screening '+e(transition.screening_commit.slice(0,12))+' · Follow-up '+e(transition.commit.slice(0,12))+' · Scope '+e(transition.scope));
+  const names=r.tool==='flupop'?['synthetic_demo','inputs.consensus','inputs.haplotypes','inputs.evidence']:r.tool==='micpscope'?['threads','memory_mb']:r.tool==='hybas'?['kraken_decision_mode','polish_mode','run_busco','run_prokka','run_multiqc']:['deep.aware.enabled','deep.aware.preset','deep.enabled'];
+  body+=(r.variant?notice('Result variant',r.variant.checkpoints+' checkpoint groups available from '+r.variant.parent+'. '+(r.variant.mode==='independent'?'This pipeline declares no reusable checkpoints; the revised run recomputes its outputs.':r.variant.mode==='native_cache'?'Native BaSIS jobs verify each cached execution identity before deciding whether to reuse it.':r.variant.mode==='mixed'?'Verified completed results are restored into this run. Other native BaSIS cache candidates are rechecked before reuse.':'Verified intermediate results are restored into this run; downstream work follows the native workflow.')+(r.variant.unknown_changes?.length?' Changes requiring recomputation: '+e(r.variant.unknown_changes.join(', '))+'.':''))+`<details class="guided-details"><summary>Result inheritance · ${r.variant.checkpoints} groups</summary><p>Changed settings: ${e(r.variant.changed.join(', ')||'None')}</p>${(r.variant.items||[]).map(x=>`<div class="readiness-environment"><strong>${e(x.rule)}</strong><span>${e(x.outputs.join(', ')||'Verified native cache candidate')}</span></div>`).join('')}</details>`:'')+`<div class="settings-intro"><div><h3>Your saved run</h3><p>Review its settings, edit a new revision, or continue execution.</p></div></div>${runReadiness(r,d)}<div class="review-stats"><div><span>Read mode</span><strong>${e(r.sample.mode.replaceAll('_',' '))}</strong></div><div><span>CPU per run</span><strong>${r.cores} cores</strong></div><div><span>Memory per run</span><strong>${r.memory_mb} MB</strong></div></div>${savedFields(settings.filter(f=>names.includes(f.name)))}<details class="guided-details"><summary>Folders and source version</summary><dl class="saved-run-locations"><div><dt>Input folder</dt><dd>${e(r.sample.path)}</dd></div><div><dt>Results folder</dt><dd>${e(d.output)}</dd></div><div><dt>Source version</dt><dd>${e(r.commit?.slice(0,12))}${r.parent?' · Parent '+e(r.parent):''}</dd></div></dl></details><div class="button-row">${r.run_type!=='followup'?btn('create-variant','Create variant',false,r.id,'branch',r.archived||r.busy||r.status!=='completed'):''}${r.can_handoff?btn('handoff','Create BaSIS AWARE draft',false,r.id,'',r.archived):''}${r.can_followup?btn('followup','Review follow-up',false,r.id,'',r.archived):''}</div>`;
+ }else if(tab==='activity'){body+=runActivity(r);
+ }else if(tab==='results'){body+=runResults(r);
+ }else if(tab==='methods'){body+=runMethods(r);
+ }else if(tab==='advanced'){
+  body+=`<div class="settings-intro"><div><h3>Technical details</h3><p>The exact saved configuration and command are available here.</p></div></div><details class="config-section"><summary>Execution command</summary><div class="padded"><pre class="code-block saved-code">${e(d.command)}</pre></div></details><details class="config-section"><summary>Frozen YAML</summary><div class="padded"><pre class="code-block saved-code">${e(d.config)}</pre>${btn('download-frozen','Download frozen YAML',false,r.id)}</div></details><details class="config-section"><summary>All saved fields</summary><div class="padded">${savedFields(included,true)}</div></details><p class="settings-note">${e(d.reuse)}</p>`;
+ }else if(tab==='databases'||tab==='resources'){
+  body+=`<div class="settings-intro"><div><h3>Databases used by this run</h3><p>These paths belong to this saved run, including any locations selected before it was created.</p></div></div><div class="saved-databases">${(d.database_paths||[]).map(x=>`<div class="saved-database">${icon('resources')}<div><strong>${e(x.name)}</strong><p data-saved-database="${e(x.id)}">${e(x.path||'Pipeline default')}</p></div></div>`).join('')}</div>${savedFields(settings.filter(f=>['Databases','Databases & storage'].includes(f.group)))}`;
+ }else{
+  const groups={kraken:'Kraken & AWARE',assembly:'Assembly & polishing',quality:'Quality & annotation',aware:'BaSIS AWARE',deep:'DeepSafe'};
+  const fields=tab==='modules'?settings.filter(f=>f.name.startsWith('modules.')&&f.name.endsWith('.enabled')):settings.filter(f=>f.group===groups[tab]);
+  body+=`<div class="settings-intro"><div><h3>${e(tabs.find(t=>t[0]===tab)?.[1]||'Settings')}</h3><p>Values saved with this run. Use Edit settings to create a revision.</p></div>${badge('Saved values')}</div>${fields.length?savedFields(fields):'<p class="settings-note">No explicit values were saved in this section. The pipeline uses its defaults.</p>'}`;
+ }
+ return body;
+}
+function dbPath(t,id){return 'dbpath-'+t+'-'+id;}
+function dbState(t){U.databaseStates ||= {};return U.databaseStates[t] ||= {revision:S.databases[t].revision,checks:{},resets:{}};}
+function clearDatabases(t){for(const key of Object.keys(U.drafts))if(key.startsWith('dbpath-'+t+'-')||key.startsWith('dbcand-'+t+'-'))delete U.drafts[key];U.databaseStates ||= {};delete U.databaseStates[t];for(const r of S.databases[t].rows){if(!r.managed){setDraft(dbPath(t,r.id),r.path);setDraft('dbcand-'+t+'-'+r.id,'');}}}
+function resourceDownloads(tool,key){
+ const rows=S.database_downloads.filter(d=>d.tool===tool&&d.resource===key).slice(-3).reverse();
+ return rows.map(d=>`<div class="resource-download"><div class="card-head"><strong>Download ${d.id.slice(-6)}</strong>${statusBadge(d.status==='completed'?'completed':d.job_status)}</div><p class="path-cell">${e(d.destination)}</p>${d.error?`<p class="error">${e(d.error)}</p>`:''}<div class="button-row">${d.status==='completed'?btn('use-downloaded','Select downloaded location',false,d.id,'check'):['failed','cancelled','interrupted'].includes(d.job_status)?btn('resume-download','Resume download',false,d.id,'play'):''}${btn('job-log','Download log',false,d.job,'file')}</div></div>`).join('');
+}
+function resources(embedded=false){const t=U.resourceTool||'flupop',p=S.databases[t],state=dbState(t),scan=state.scan;
+const databaseTabs=embedded?'':`<div class="tabs">${Object.keys(S.pipelines).map(x=>`<button class="tab ${x===t?'active':''}" data-action="database-tool" data-id="${x}">${e(S.pipelines[x].name)}</button>`).join('')}</div>`;
+if(!p.rows.length)return (embedded?'':heading('DATABASES & MODELS','Your databases, connected.','Choose installed resources for each pipeline. Save selected locations for future runs. Existing drafts keep their own paths until you create a revision.'))+databaseTabs+`<section class="card database-scan"><div class="card-head"><div><h2>${e(S.pipelines[t].name)} resources</h2><p>Resource requirements for the selected pipeline.</p></div>${badge('No external databases','green')}</div><div class="card-body"><p>This release uses annotated protein FASTA and optional evidence CSV files. No database download, scan or saved database location is required.</p><p class="inline-info">Tool environments are prepared under Install & update. Input files are selected when creating a run draft.</p>${btn('go-install','Install & update',false,'','install')}</div></section>`;
+const dirty=p.rows.filter(r=>!r.managed&&(state.resets[r.id]||val(dbPath(t,r.id),r.path)!==r.path));
+return (embedded?'':heading('DATABASES & MODELS','Your databases, connected.','Choose installed resources for each pipeline. Save selected locations for future runs. Existing drafts keep their own paths until you create a revision.',btn('save-databases','Save for future runs',true,t,'check',!dirty.length)+btn('use-databases-for-runs','Update saved drafts',false,t,'resources',!!dirty.length||!visibleRuns().some(r=>r.tool===t&&!r.busy&&r.run_type!=='followup'))))+
+`${embedded?'':`<div class="tabs">${Object.keys(S.pipelines).map(x=>`<button class="tab ${x===t?'active':''}" data-action="database-tool" data-id="${x}">${e(S.pipelines[x].name)}</button>`).join('')}</div>`}
+<section class="card database-scan"><div class="card-head"><div><h2>Find installed databases</h2><p>Scan known locations and common folders, or include a folder on another disk.</p></div>${btn('scan-databases','Auto scan',true,t,'resources')}</div><div class="card-body"><div class="folder-address">${field('dbscan-'+t,'Additional scan folder (optional)','','text','placeholder="/home/jimi/databases or D:\\databases"')}${btn('browse-folder','Browse',false,'dbscan-'+t,'folder')}</div><p class="inline-info">A valid saved location is preferred. Otherwise the scan suggests a recognized installation; review its release and scope before saving.</p>
+${scan?`<details class="database-scan-details"><summary>${Object.values(scan.candidates).reduce((n,a)=>n+a.length,0)} candidates found · ${scan.visited} folders checked${scan.limited?' · scan limits reached':''}</summary><p>${e(scan.scope)}</p>${scan.limits.length?`<p>Reached: ${e(scan.limits.join(', '))}. Scan a more specific folder to continue.</p>`:''}${scan.inaccessible?`<p>${scan.inaccessible} inaccessible folders skipped.</p>`:''}<p class="path-cell">${scan.roots.map(e).join('<br>')}</p></details>`:''}</div></section>
+${!S.download_options[t].available?notice('Set up database downloads','In Install & update, select and finish setup for the recommended pipeline version.'):''}${scan?.invalid.length?`<details class="card database-rejected"><summary>${scan.invalid.length} locations need attention</summary>${scan.invalid.map(x=>`<div><strong>${e(p.rows.find(r=>r.id===x.id)?.name||x.id)}</strong><p class="path-cell">${e(x.path)}</p><p class="error">${e(x.message)}</p></div>`).join('')}</details>`:''}
+${state.revision!==p.revision?notice('Saved defaults have changed','Reload locations before saving these choices.',true):''}
+<div class="database-summary"><span>${dirty.length?dirty.length+' unsaved selection'+(dirty.length===1?'':'s'):'Saved locations'} · ${t==='basis'?'Missing resources follow the '+e(p.policy)+' preparation policy.':'Download databases here, then save the prepared locations.'}</span>${btn('reload-databases','Reload locations',false,t)}</div>
+<div class="database-grid">${p.rows.filter(r=>!r.managed).map(r=>{const id=dbPath(t,r.id),value=val(id,r.path),checked=state.checks[r.id],choices=scan?.candidates[r.id]||[],chosen=choices.find(c=>c.path===value),status=checked?.path===value?checked:chosen,reset=state.resets[r.id],invalid=scan?.invalid.find(x=>x.id===r.id&&x.path===value);
+return `<section class="card database-card"><div class="database-title"><h2>${e(r.name)}</h2>${badge(reset?'Pipeline default':status?'Layout recognized':value?'Location not checked':'Pipeline default',status?'green':'')}</div><p class="database-description">${e(r.description)}</p><div class="folder-address">${field(id,r.name+' location',r.path,'text','placeholder="Choose an installed database folder"')}${btn('browse-database','Browse',false,r.id,'folder')}</div>
+${choices.length?select('dbcand-'+t+'-'+r.id,'Detected installations · '+choices.length,[['','Choose a detected location'],...choices.map(c=>[c.path,(c.preferred?'Preferred · ':'')+(c.version?c.version+' · ':'')+c.path])],chosen?.path||''):''}
+${status?`<p class="database-evidence">${icon('check')}<span>${e(status.reason||'Expected files found. Native runtime checks still apply.')}${status.version?'<br>Recorded version: '+e(status.version):''}</span></p>`:invalid?`<p class="error">${e(invalid.message)}</p>`:''}
+${reset?'<p class="inline-info">Save to use the pipeline default for this resource.</p>':`<p class="database-selection-state">${value!==r.path?'Selected · not saved':r.path?'Saved for future runs':'Using the pipeline default'}</p>`}
+<div class="database-actions">${btn('check-database','Check location',false,r.id,'check',!value||!!reset)}${btn('reset-database','Use pipeline default',false,r.id,'',!value&&!reset)}${btn('download-database',r.id==='kraken'?'Download and build':'Download and prepare',false,r.id,'download',!S.download_options[t].available)}</div>${resourceDownloads(t,r.id)}</section>`;}).join('')}</div>
+<section class="card database-managed"><div class="card-head"><h2>Tool-managed resources</h2></div><div class="card-body">${p.rows.filter(r=>r.managed).map(r=>`<div><strong>${e(r.name)}</strong>${badge('Tool-managed')}<p>${e(r.description)}</p></div>`).join('')}</div></section>
+${notice('A quick layout check','Discovery reads filenames and small metadata files. The native pipeline performs its full resource checks when preparing a run. Scanning does not download databases.')}
+<div class="database-footer"><span>${dirty.length?'Selections are not saved yet. Save to use them in future drafts.':'Existing run drafts keep their frozen resource paths.'}</span>${btn('save-databases','Save for future runs',true,t,'check',!dirty.length)}</div>`;}
+function render(){draftInputs();$('#navigation').innerHTML=navs.map(([key,label,ico])=>`${key==='overview'?'<div class="nav-label">WORK</div>':key==='install'?'<div class="nav-divider"></div><div class="nav-label">MANAGE</div>':''}<a href="#${key}" aria-label="${e(label)}" data-nav="${key}" class="nav-item ${(['run','draft'].includes(U.view)?'runs':U.view)===key?'active':''}" ${(['run','draft'].includes(U.view)?'runs':U.view)===key?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${key==='jobs'&&S.jobs.some(j=>['queued','running'].includes(j.status))?`<span class="nav-count">${S.jobs.filter(j=>['queued','running'].includes(j.status)).length}</span>`:''}</a>`).join('');$('#crumb').textContent=U.view==='draft'?'Runs / Unfinished draft':U.view==='run'?'Runs / '+(runBy(U.runId)?.label||'Saved run'):navs.find(n=>n[0]===U.view)?.[1]||'Overview';$('#app-version').textContent='v'+S.version;$('#workspace-name').textContent=S.workspace.split('/').pop();$('#workspace-name').title=S.workspace;const running=S.jobs.filter(j=>j.status==='running').length,queued=S.jobs.filter(j=>j.status==='queued').length;$('#queue-status').textContent=S.queue?.paused?`Queue paused · ${running} running · ${queued} waiting`:running||queued?`${running} running · ${queued} queued${S.queue?.held_count?' · '+S.queue.held_count+' held':''}`:'No active jobs';$('.status-dot').classList.toggle('active',!!running);
+$('#main').innerHTML=appUpdateNotice()+queueNotice()+wizardBanner()+(!U.modal&&U.error?`<div class="error" role="alert">${e(U.error)}</div>`:'')+({overview,samples,runs:runsPage,run:runPage,draft:wizardPage,comparisons,jobs,reports:reportsPage,storage:storagePage,install,resources,configure:configuration}[U.view]||overview)();
+if(!$('#connection-status')){const x=document.createElement('div');x.id='connection-status';x.className='connection-status';$('.topbar-location').append(x);}syncNavigation();renderBusy();renderModal();filterResults();filterCompatibility();if(['configure','draft'].includes(U.view)&&!U.modal)filterRunSettings();persistWizard();schedulePoll();
+if(U.view==='install'&&U.setupTab==='compatibility'&&!U.compatibility&&!U.pending&&!U.queuedRequest&&!U.error)request('inspect_compatibility');
+if(U.view==='storage'&&!U.storage&&!U.pending&&!U.queuedRequest&&!U.error)request('inspect_storage');
+if(U.view==='run'&&!U.modal&&!U.pending&&!U.queuedRequest&&!U.error&&runBy(U.runId)&&U.detail?.id!==U.runId)request('inspect_run',{id:U.runId});
+if(U.view==='run'&&U.runDetailTab==='results'&&!U.modal&&!U.pending&&!U.queuedRequest&&!U.error&&U.results?.id!==U.runId)request('inspect_results',{id:U.runId});
+if(U.view==='draft'&&U.wizard&&!runEditor()&&!U.pending&&!U.error){if(wizardKind()==='edit-run')request('edit_run_settings',{id:U.wizard.id,variant:!!U.wizard.variant});else request('run_config_editor',{tool:val('run-tool','flupop'),view:'samples'});}
+if(U.view==='configure'&&!U.modal&&!U.pending&&!U.queuedRequest&&!U.error){const c=defaultEditor();if(!c||!defaultsDirty(c)&&c.revision!==S.databases[U.tool].revision)request('default_config_editor',{tool:U.tool});}}
+function schedulePoll(){
+ clearTimeout(pollTimer);if(U.pending||U.queuedRequest||!S.jobs.some(j=>['queued','running'].includes(j.status)))return;
+ pollTimer=setTimeout(()=>{
+  const active=parentElement.activeElement||document.activeElement;
+  const editing=active&&root.contains(active)&&active.matches('input,textarea,select,[contenteditable="true"]');
+  if(editing||(U.modal&&!['run','log','usage','workstation'].includes(U.modal.kind))){schedulePoll();return;}
+  const kind=U.modal?.kind==='workstation'?'inspect_workstation':U.modal?.kind==='usage'?'job_metrics':U.modal?.kind==='log'?'job_log':U.view==='run'&&runBy(U.runId)?(U.runDetailTab==='results'?'inspect_results':'inspect_run'):'refresh';
+  request(kind,U.modal?{id:U.modal.id}:U.view==='run'?{id:U.runId}:{},true);
+ },4000);
+}
+function supportMatches(){return !!U.support&&(U.support.job_id||'')===val('support-job','')&&U.support.include_log===!!val('support-log',false);}
+function clearSupport(){U.support=null;for(const key of ['support-job','support-log','support-text','support-reviewed'])delete U.drafts[key];}
+function supportValid(){const text=val('support-text','');return supportMatches()&&text.trim()&&!text.includes('\0')&&new TextEncoder().encode(text).length<=131072&&val('support-reviewed',false)===true;}
+function syncSupport(){
+ const text=$('#support-text');if(text)U.drafts['support-text']=text.value;
+ const bytes=new TextEncoder().encode(val('support-text','')).length,info=$('#support-size');
+ if(info){info.textContent=bytes.toLocaleString()+' / 131,072 bytes · downloads contain exactly this text';info.classList.toggle('error',bytes>131072);}
+ for(const button of $$('[data-action^="support-download-"]'))button.disabled=!supportValid();
+ renderBusy();
+}
+function supportPanel(){
+ const preview=U.support,match=supportMatches(),jid=val('support-job','');
+ return `<div class="support-intro"><p>Create a local diagnostic snapshot to share with a colleague or the Virologix support plugin. Nothing is uploaded, sent or posted automatically.</p><div class="support-scope"><strong>Included</strong><p>App versions, cached PC capacity, active pipeline commits and recorded environment checks. A selected job adds its own source commit and execution metadata.</p><strong>Excluded</strong><p>Sample lists, input files, full configurations and environment-variable dumps.</p></div></div><div class="form-grid">${select('support-job','Job to troubleshoot',[['','General setup — no job'],...S.jobs.map(j=>[j.id,j.id+' · '+j.kind.replaceAll('_',' ')+' · '+j.status])])}<label class="check-field support-log-choice"><input type="checkbox" id="support-log" ${val('support-log',false)?'checked':''} ${!jid?'disabled':''}><span>Include a redacted log excerpt from this job<small>Optional · last 32 KiB / 160 lines · may omit the first error</small></span></label></div>${notice('Review before sharing','Redaction is best effort. Logs may contain private names, paths, sequence data or secrets that automatic patterns miss. Edit anything you do not want to share.',true)}<div class="button-row support-generate">${btn('generate-support',preview?'Generate new preview':'Generate preview',true)}${preview?`<small>Generated ${e(preview.generated_at)} · ${e(preview.job_id||'general setup')}</small>`:''}</div>${preview?`${!match?notice('Selection changed','Generate a new preview for these choices before downloading.',true):''}<p class="inline-info">${Object.values(preview.redactions||{}).reduce((sum,n)=>sum+n,0)} automatic redaction(s). ${preview.include_log?'Log: '+e(preview.log.status)+(preview.log.truncated?' · excerpt truncated':'')+'.':'No log requested.'} Recorded readiness is not a fresh health check.</p>${area('support-text','Review and edit snapshot',preview.text,'rows="16" spellcheck="false" autocomplete="off" autocapitalize="off" class="support-preview"')}<small id="support-size"></small><label class="check-field support-review"><input type="checkbox" id="support-reviewed" ${val('support-reviewed',false)?'checked':''} ${!match?'disabled':''}><span>I reviewed this text and removed information I do not want to share.</span></label><p class="inline-info">Closing clears the preview from this panel. Downloads remain on your computer. Review again after every edit.</p>`:'<div class="support-empty">Choose a job if relevant, then generate a preview. This does not start jobs, install software or recheck environments.</div>'}`;
+}
+
+function renderModal(){const m=U.modal;if(!m){$('#modal-root').innerHTML='';$('.app-shell').removeAttribute('inert');return;}
+let title='',desc='',body='',foot='',wide=false;
+if(m.kind==='discard-wizard'){title='Discard unfinished edits?';desc='Only the unfinished editor will be cleared.';body='<p>Saved runs, samples, outputs and default settings are kept. Close this dialog to continue editing.</p>';foot=btn('confirm-discard-wizard','Discard unfinished edits',true,'','trash');}
+if(m.kind==='editor-conflict'){
+ const target=runBy(m.id),pipeline=S.pipelines[target?.tool]?.name||'the selected run',current=U.wizard?.kind==='edit-run'?(U.revision||runBy(U.wizard.id)):null;
+ title='Unfinished edits';desc='Choose which editor to continue.';
+ body=`<p>You asked to ${m.variant?'create a variant of':'edit'} <strong>${e(pipeline)} · ${e(target?.label||m.id)}</strong>.</p><p class="path-cell">${e(m.id)}</p><p>An unfinished <strong>${e(unfinishedPipeline())} ${current?'revision of '+e(current.label):'draft'}</strong> is already open in this browser tab. Resume those edits, or discard them to open the selected run.</p>${current?`<p class="path-cell">Unfinished revision: ${e(current.id)}</p>`:''}<p>Closing this dialog keeps your unfinished edits. Discarding clears only the unfinished editor; saved runs and results are kept.</p>`;
+ foot=btn('resume-conflicting-editor','Resume unfinished edits')+btn('replace-conflicting-editor','Discard edits and open '+pipeline,true);
+}
+
+if(m.kind==='app-update'){
+ wide=true;title='Update Virologix';desc='Choose an application release from GitHub.';
+ const u=S.app_update,c=u.catalog,rows=c?.releases||[],chosen=rows.find(r=>String(r.id)===val('app-release'));
+ body=`<div class="card-head"><div><strong>Running v${e(S.version)}</strong><p class="path-cell">Application environment: ${e(u.environment)}</p></div>${btn('refresh-app-releases','Refresh releases')}</div><p class="inline-info">${c?'Last checked: '+e(c.checked_at):'Checking available releases…'}</p>
+ <div class="version-list">${rows.map(r=>`<label class="source-card"><input type="radio" name="app-version-choice" value="${r.id}" ${String(r.id)===val('app-release')?'checked':''} ${!r.available||r.version===S.version?'disabled':''}><span><strong>${e(r.tag)}</strong> ${badge(r.prerelease?'Prerelease':'Stable',r.prerelease?'amber':'green')}${r.version===S.version?' '+badge('Running','green'):r.older?' '+badge('Older release','amber'):''}<small>${e(r.name)} · ${e(r.published_at||'')}</small>${!r.available?'<small>Installable wheel with checksum is not available.</small>':''}<a href="${e(safeURL(r.url))}" target="_blank" rel="noopener noreferrer">Release on GitHub ↗</a>${r.notes?`<details><summary>Release notes</summary><pre class="release-notes">${e(r.notes)}</pre></details>`:''}</span></label>`).join('')}</div>
+ ${notice('Application update','Installs the selected version in the environment shown above. Finish queued/running jobs first. '+(u.automatic_restart?'After verification, the app restarts on this address and this tab refreshes automatically. Keep the terminal and tab open.':'This session needs a manual restart after installation: press Ctrl+C in its terminal, then run viralogix. Future updates launched with the new command restart automatically.')+' Pipeline runners, databases and run folders stay separate.')}
+ ${chosen?.older?notice('Older release selected','Earlier app versions may support fewer pipeline revisions. Choose the intended release before installing.',true):''}
+ ${!u.can_install?notice(u.restart_required?'Restart required':u.queue_paused?'Resume queue first':'Finish active jobs first',u.restart_required?u.automatic_restart?'The app is restarting automatically. Keep this tab open.':'Restart the app before installing another version.':u.queue_paused?'Open Jobs & progress and resume the queue before requesting an app update. Held jobs must finish or be cancelled.':'You can browse releases now and install when the job queue is idle.',true):''}`;
+ foot=btn('install-app-release',chosen?'Install '+chosen.tag:'Choose a release',true,'','download',!chosen?.available||!u.can_install||chosen.version===S.version);
+}
+if(m.kind==='apply-databases'){
+ wide=true;title='Use saved databases';desc='Select saved locations for revised run drafts.';
+ const plan=U.databaseRunPlan;
+ body=notice('Keep each run reproducible','This creates a revised draft with the selected saved database paths. It keeps the input files, pipeline version and other settings. The revised draft needs a new dry-run. Save changes on the database page before using this action.');
+ if(!plan){
+  const runs=visibleRuns().filter(r=>r.tool===m.id&&!r.busy&&r.run_type!=='followup');
+  body+=`<div class="version-list">${runs.map(r=>`<label class="source-card"><input type="checkbox" id="dbapply-run-${e(r.id)}" data-apply-run="${e(r.id)}" ${val('dbapply-run-'+r.id,false)?'checked':''}><span><strong>${e(r.label)}</strong><small>${e(r.id)}</small></span></label>`).join('')}</div>`;
+  foot=btn('review-run-databases','Review database changes',true,'','resources',!runs.some(r=>val('dbapply-run-'+r.id,false)));
+ }else{
+  body+=plan.runs.map(r=>`<section class="database-apply-run"><h3>${e(r.label)}</h3><p class="path-cell">${e(r.id)}</p>${r.rows.map(x=>`<label class="database-apply-row"><input type="checkbox" id="dbapply-resource-${e(r.id)}-${e(x.id)}" data-apply-resource="${e(x.id)}" data-apply-run-id="${e(r.id)}" ${val('dbapply-resource-'+r.id+'-'+x.id,x.valid&&x.changed)?'checked':''} ${!x.valid||!x.changed?'disabled':''}><span><strong>${e(x.name)}</strong><small>Run: ${e(x.current||'Pipeline default')}</small><small>Saved: ${e(x.saved||'Not set')}</small>${x.error?`<small class="error">${e(x.error)}</small>`:!x.changed?'<small>Already using this saved location.</small>':'<small class="database-evidence">Ready to apply</small>'}</span></label>`).join('')}</section>`).join('');
+  foot=btn('change-database-runs','Choose runs')+btn('apply-run-databases','Use saved databases',true,'','check',!plan.runs.some(r=>r.rows.some(x=>x.valid&&x.changed&&val('dbapply-resource-'+r.id+'-'+x.id,true))));
+ }
+}
+if(m.kind==='environments'){
+ wide=true;const item=S.installs.find(i=>i.id===m.id),panel=S.environments[m.id],checking=m.action==='check',repairing=m.action==='repair',advanced=$('#environment-storage')?.open??!!m.advanced;
+ title=checking?'Check environments':repairing?'Repair environments':'Install environments';desc=S.pipelines[item.tool].name+' · '+item.version.ref;
+ body=`<p>${checking?'Check which selected tools are installed and working. This does not install or change environments.':repairing?'Check selected environments, prepare missing or incomplete ones, and apply supported dependency repairs. Healthy environments are reused.':'Prepare the selected tools for this pipeline. Matching completed environments are reused automatically; missing environments are installed.'} No sample or run draft is needed.</p>${notice('Reuse is automatic','Pipeline updates keep the previous version’s environment folder. Snakemake identifies matching environments in that folder. You do not need to select a reuse option.')}<p class="inline-info">${checking?'Checks inspect deployment completion, run native tool checks and test NanoPlot HTML/PNG rendering when included.':repairing?'The known NanoPlot 1.46.2 / MultiQC 1.32 conflict is repaired with Plotly 6.1.2 and Kaleido 0.2.1. Package changes are recorded. Incomplete copies are backed up before rebuilding; unsupported failures are reported without deleting complete environments. Shared runs using these environments will see repaired packages.':'Installation prepares software only. It does not run samples or start database downloads. A changed requirement may need a new environment.'}</p>${panel.error?notice('Environment inventory unavailable',e(panel.error),true):''}
+ <div class="environment-selection"><strong id="environment-selection-count"></strong><div class="button-row">${btn('select-environments','Select all')}${btn('clear-environments','Clear selection')}</div></div>
+ <div class="environment-list">${panel.rows.map(r=>`<label class="environment-row"><input id="envpick-${e(m.id)}-${e(r.id)}" data-environment="${e(r.id)}" type="checkbox" ${val('envpick-'+m.id+'-'+r.id,true)?'checked':''}><span><strong>${e(r.name)}</strong><small>${e(r.id)}${r.checked_at?' · Checked '+e(r.checked_at):''}</small>${r.path?`<small class="path-cell">${e(r.path)}</small>`:''}${r.message?`<small>${e(r.message)}</small>`:''}</span>${badge(r.status,r.status==='Verified'?'green':['Check failed','Repair failed','Incomplete'].includes(r.status)?'amber':'')}</label>`).join('')}</div>
+ <details id="environment-storage" class="guided-details" ${advanced?'open':''}><summary>Advanced: environment storage</summary><p class="inline-info">Change this only to use a different storage location or a cache from an external installation. Choose the parent folder containing environment subfolders, not an individual Conda environment. Existing runs retain their saved folder.</p><div class="folder-address">${field('environment-cache-'+m.id,'Environment cache folder',panel.cache)}${btn('browse-env-cache','Browse',false,m.id,'folder')}</div><div class="button-row">${btn('save-env-cache','Save folder',false,m.id)}</div><p id="environment-cache-note" class="inline-info"></p></details>`;
+ foot=btn(checking?'check-environments':repairing?'repair-environments':'install-environments',checking?'Check selected':repairing?'Repair selected':'Install selected',true,m.id,checking?'check':'download',panel.busy);
+}
+if(m.kind==='uninstall'){
+ wide=true;title='Uninstall pipeline version';const plan=U.uninstallPlan?.id===m.id?U.uninstallPlan:null;desc=plan?S.pipelines[plan.tool].name+' · '+plan.version:m.id;
+ body=plan?`<div class="uninstall-scope"><h3>Remove this version</h3><p>The version entry and ${plan.source_exists?'this managed source copy':'its missing source reference'} will be removed.</p><code>${e(plan.source)}</code></div><div class="uninstall-kept"><h3>Keep on this machine</h3><ul><li>Runner environment: <span class="path-cell">${e(plan.controller||'None recorded')}</span></li><li>Tool environment cache: <span class="path-cell">${e(plan.cache)}</span></li><li>Databases, saved runs, results and logs</li><li>Any original checkout connected from another folder</li></ul></div>${plan.blocked.length?notice('This version is still needed',plan.blocked.map(e).join('<br>'),true):'<p class="inline-info">This is not the active version and no saved runs depend on it. Uninstall does not remove retained environments to reclaim their disk space.</p>'}`:'<p>Checking version dependencies and source files…</p>';
+ foot=btn('uninstall-version','Uninstall this version',true,m.id,'trash',!plan||!!plan.blocked.length);
+}
+if(m.kind==='download-database'){
+ const t=U.resourceTool||'flupop',r=S.databases[t].rows.find(x=>x.id===m.id);title=(r.id==='kraken'?'Download and build ':'Download and prepare ')+r.name;desc='Choose a location and review the preparation steps.';
+ body=`<div class="folder-address">${field('download-parent','Download location',S.download_options[t].parent)}${btn('browse-folder','Browse',false,'download-parent','folder')}</div><p>A new subfolder will be created here. After preparation, use the downloaded location and save it for future run drafts.</p><div class="form-grid">${field('download-cores','Threads',4,'number','min="1" max="1024"')}${field('download-memory','Memory budget (MB)',16000,'number','min="1" max="10000000"')}${r.id==='busco'?field('download-lineage','BUSCO lineage',S.databases[t].lineage||'bacteria_odb10'):''}</div>${notice('What will happen','The job may first install the tool environment required by this pipeline’s database preparation rule. It then downloads '+(r.id==='kraken'?'and builds the database':'and prepares the resource')+' in a new subfolder at the location above. No sample analysis is started. Select the completed location and save it for future runs.')} ${notice(r.id==='kraken'?'Kraken2 standard database build':'Native database preparation',r.id==='kraken'?'This downloads and builds the standard database. It can need substantial disk space, RAM and time; choose resources suitable for your machine.':'The pipeline downloads and prepares this resource and any required dependencies. Follow progress or stop the job in Jobs & progress.')}`;
+ foot=btn('start-database-download',r.id==='kraken'?'Download and build':'Download and prepare',true,m.id,'download');
+}
+if(m.kind==='sample'){title='Add a sample';desc='Register an existing folder on this machine.';body=`<div class="form-grid">${field('sample-id','Sample ID','','text','required')}${select('sample-mode','Read mode',[['supplied_records','Supplied records']],'supplied_records')}<div class="field wide">${field('sample-path','Input folder','','text','placeholder="/home/jimi/viromics/sample01" required')}${btn('browse-folder','Browse folders',false,'sample-path','folder')}</div></div>${notice('Input layout','FluPop: consensus.fasta and haplotypes.tsv. Configure other filenames in Run settings; optional evidence JSON can be supplied.')}`;foot=btn('save-sample','Register sample',true);}
+if(m.kind==='folders'){
+ wide=true;title='Choose a folder';desc='Browse the machine running Virologix. Files stay on disk.';
+ const b=U.browser;
+ body=`<div class="folder-address">${field('folder-path','Folder path',b?.path||'','','placeholder="/home/jimi or C:\\Users\\…"'+(!b?' disabled':''))}${btn('folder-go','Go')}</div>`;
+ if(b){
+  body+=`<div class="folder-shortcuts">${btn('folder-open','Up',false,b.parent,'arrow',b.path===b.parent)}${b.bookmarks.map(x=>btn('folder-open',x.name,false,x.path,'folder')).join('')}</div>
+   <div class="folder-filters">${field('folder-query','Find a subfolder',val('folder-query'))}<label class="folder-hidden"><input id="folder-hidden" type="checkbox" ${val('folder-hidden',false)?'checked':''}> Show hidden</label>${btn('folder-filter','Apply')}</div>
+   <div class="folder-location">${icon('folder')}<strong>${e(b.path)}</strong></div>
+   <div class="folder-list" aria-label="Subfolders">${b.folders.length?b.folders.map(x=>`<button type="button" class="folder-entry" data-action="folder-open" data-id="${e(x.path)}">${icon('folder')}<span>${e(x.name)}${x.link?' <small>shortcut</small>':''}</span>${icon('chevron')}</button>`).join(''):'<p class="folder-empty">No matching subfolders. You can select this folder.</p>'}</div>
+   <div class="folder-pagination"><small>${b.total} matching folders · ${b.files} files${b.limited?' · Listing limited; enter a full path to go deeper.':''}</small><div class="button-row">${btn('folder-page','Previous',false,String(Math.max(0,b.offset-100)),'',!b.offset)}${btn('folder-page','Next',false,String(b.offset+100),'',!b.more)}</div></div>
+   ${Object.entries(b.layout).some(([,found])=>found)?`<div class="detail-pills">${Object.entries(b.layout).filter(([,found])=>found).map(([name])=>badge(name,'green')).join('')}</div>`:''}`;
+ }
+ else body+='<p class="inline-info">Loading folders…</p>';
+ foot=btn('folder-select','Select this folder',true,'','check',!b);
+}
+if(m.kind==='existing'){
+ wide=true;const t=m.id, info=U.localInstall?.tool===t?U.localInstall:null, d=U.discovery, envs=U.localEnvs?.environments||[];
+ title='Connect existing '+S.pipelines[t].name;desc='Choose a checkout and reuse a compatible runner.';
+ body=`<div class="local-install-section"><h3>1. Find your pipeline</h3><div class="folder-address">${field('existing-source','Pipeline folder','','text','placeholder="/home/jimi/Bactomics_'+(t==='hybas'?'HybAs':t==='basis'?'BaSIS':'MICPscope')+'"')}${btn('browse-folder','Browse',false,'existing-source','folder')}${btn('inspect-local','Inspect folder',true,t)}</div>
+ <details class="config-section" ${d?'open':''}><summary>Search this machine</summary><div class="padded"><p class="inline-info">Quick scan: Home, current folder and /opt, up to four levels. Choose a folder to search elsewhere, including a mounted drive.</p><div class="folder-address">${field('discovery-root','Search folder (optional)')}${btn('browse-folder','Browse',false,'discovery-root','folder')}${btn('scan-local','Scan for '+S.pipelines[t].name,false,t)}</div>
+ ${d?`<p class="inline-info">Checked ${d.visited} folders${d.limited?' · scan limit reached':''}. ${d.candidates.length} candidate(s).</p><div class="local-candidates">${d.candidates.map(x=>`<div class="local-candidate"><div><strong class="path-cell">${e(x.path)}</strong><small>${e(x.error||x.ref+' · '+x.commit.slice(0,12))}</small>${badge(x.supported?'Supported version':'Needs review',x.supported?'green':'amber')}</div>${btn('choose-local','Inspect',false,x.path,'',!!x.error)}</div>`).join('')||'<p>No checkout found here. Browse directly to its folder or scan a different location.</p>'}</div>`:''}</div></details>
+ ${info?`<div class="local-inspection">${badge(info.supported?'Supported source':'Adapter review needed',info.supported?'green':'amber')}<strong>${e(info.ref)}</strong><code>${e(info.commit)}</code><p class="path-cell">${e(info.path)}</p>${info.modified?'<p class="inline-info">Local edits found. Runs use committed source; import your local YAML in Configuration.</p>':''}${!info.supported?'<p class="inline-info">This commit has no reviewed execution adapter yet. Your existing installation is unchanged. Choose a supported version under Install & update.</p>':''}</div>`:''}</div>
+ <div class="local-install-section"><h3>2. Choose the runner</h3><p class="inline-info">An existing runner must match the Python and Snakemake versions declared by this release and pass its import checks. Selecting one never installs or updates packages in it.</p>
+ <div class="folder-address">${select('existing-env-choice','Detected Conda environments',[['','Create / reuse a Virologix runner'],...envs.map(x=>[x.path,x.name+' · Python '+x.python+' · Snakemake '+x.snakemake]),['manual','Browse to another environment']],val('existing-env-choice',''))}${btn('find-envs','Detect environments')}</div>
+ ${val('existing-env-choice')?`<div class="folder-address">${field('existing-controller','Environment folder','','text','placeholder="/home/jimi/miniforge3/envs/hybas"')}${btn('browse-folder','Browse',false,'existing-controller','folder')}</div>`:'<p class="inline-info">Virologix will reuse its compatible runner or prepare a separate one.</p>'}
+ ${U.localEnvs?.warning?`<p class="inline-info">${e(U.localEnvs.warning)}</p>`:''}</div>
+ <details class="local-install-section guided-details"><summary>Advanced: tool environment folder</summary><p class="inline-info">A cache detected in this checkout is selected automatically. Otherwise Virologix uses the current pipeline’s environment folder. Override this only to use another location.</p><div class="folder-address">${field('existing-cache','Existing Snakemake Conda cache','','text','placeholder="Use the Virologix folder"')}${btn('browse-folder','Browse',false,'existing-cache','folder')}</div><p class="inline-info">A typical cache is &lt;pipeline&gt;/.snakemake/conda. Matching environments are reused automatically. Prepare missing tools with Install environments after connecting.</p></details>
+ ${notice('Keep your existing work','Connecting copies committed workflow source locally. Import your native YAML and set database paths in Configuration. Existing outputs are available as reports; they are not adopted for in-place resume.')}`;
+ foot=btn('connect-local','Connect installation',true,t,'check',!info?.supported||info.path!==val('existing-source'));
+}
+if(m.kind==='import'){wide=true;title='Import a sample table';desc='Preview every row before registering input folders.';body=`<label class="btn upload-label">Choose CSV / TSV<input type="file" id="sample-upload" accept=".csv,.tsv" class="visually-hidden"></label><div class="form-grid">${area('sample-table','Table contents','sample_id,input_folder,read_mode\n','rows="9" spellcheck="false"')}</div><div class="button-row">${btn('sample-template','Download template')}${btn('preview-samples','Preview table',true)}</div><p class="settings-note">CSV or TSV · sample_id, input_folder, optional read_mode. Blank input modes use Supplied records. Up to 500 rows / 2 MB. This registers folders; it does not validate input files or create runs.</p><div id="sample-import-status"></div><div id="sample-import-preview">${sampleImportPreview()}</div>`;foot=btn('import-samples','Import reviewed samples',true,'','',true);}
+if(m.kind==='conda'){title='Choose Conda';desc='Use an existing executable or install local Conda from Install & update.';body=field('conda-path','Conda executable',S.doctor.conda||'');foot=btn('save-conda','Save location',true);}
+
+if(m.kind==='versions'){wide=true;const t=m.id,c=S.catalogs[t],{releases:releaseRows,recommended,ordered}=pipelineVersionChoices(t);title='Choose '+S.pipelines[t].name+' version';desc='Reviewed release contracts and legacy compatible snapshots. '+(c.live?'Cached GitHub catalogue; last successful check: ':'Bundled catalogue dated: ')+c.checkedAt;body=`<p class="inline-info">Installed: ${e(activeInstall(t)?.version.ref||'Not installed')} · Latest release: ${e(releaseRows[0]?.ref||'Not recorded')} · Recommended compatible release: ${e((recommended?.kind==='release'?recommended.ref:null)||(val('release-channel','prerelease')==='stable'?'No tested stable release':'Use a reviewed legacy snapshot'))} · Last successful check: ${e(c.checkedAt)}</p><div class="toolbar"><input class="search" id="version-search" placeholder="Search versions…" aria-label="Search versions" value="${e(val('version-search'))}">${select('release-channel','Release channel',[['prerelease','Prereleases and stable'],['stable','Stable only']],'prerelease')}${select('version-channel','Source type',[['all','All'],['pinned','Compatible snapshots'],['release','Releases'],['branch','Branches']],'all')}${btn('refresh-versions','Refresh from GitHub',false,t)}</div><div class="version-list">${ordered.map(v=>`<label class="source-card version-choice" data-version-prerelease="${!!v.prerelease}" data-version-kind="${v.kind}" data-version-name="${e((v.ref+' '+v.name).toLowerCase())}"><input type="radio" name="version" value="${e(v.id)}" ${val('version-'+t)===v.id?'checked':''}><span><strong>${e(v.ref)}</strong> ${v.id===recommended?.id?badge('Recommended','green'):''} ${v.commit===activeInstall(t)?.version.commit?badge('Installed','blue'):''} ${badge(v.kind,'blue')} ${v.supported?badge('Runner supported','green'):badge('Source only')}<small>${e(v.name)} · ${e(v.commit.slice(0,12))}</small><small>${e(v.compatibility_reason||'Legacy reviewed snapshot')}</small><a href="${e(safeURL(v.url))}" target="_blank" rel="noopener noreferrer">Source / release notes ↗</a>${v.notes?`<details><summary>Release notes</summary><pre class="release-notes">${e(v.notes)}</pre></details>`:''}</span></label>`).join('')}</div>${notice(S.setup_overview?.[t]?.first_install?'First-time installation':'Keep your existing environments',(S.setup_overview?.[t]?.first_install?'This installs the source, runner and all listed tool environments. Database setup is separate. ':'')+'Compatible runners are checked and reused. Other source versions can be downloaded, but managed runs require a reviewed adapter for that exact commit.')}`;const chosen=c.versions.find(x=>x.id===val('version-'+t));foot=btn('install-version',chosen?.supported?(S.setup_overview?.[t]?.first_install?'Install pipeline and tools':'Download and set up'):'Download source only',true,t,'',!chosen);}
+
+if(m.kind==='followup'){
+ wide=true;title='Review saved screening for follow-up';desc=m.id;
+ const choices=runBy(m.id)?.followup_sources||[],selected=val('followup-source-'+m.id,choices[0]?.id||'screening'),chosen=choices.find(x=>x.id===selected),scopes=chosen?.scopes||[];
+ const scopeDefault=scopes.includes('amrfinder-review')?'amrfinder-review':'';
+ body=notice('Separate follow-up','Review the screening report and settings first. A later attempt replaces follow-up outputs; screening outputs remain separate.',true)+btn('view-results','Open screening results',false,m.id)+
+ select('followup-source-'+m.id,'Workflow version for this follow-up',choices.map(x=>[x.id,x.label+' · '+x.commit.slice(0,12)]),selected)+
+ select('followup-scope-'+m.id,'AWARE scope',[['','Inherit saved screening policy'],...scopes.map(x=>[x,x==='amrfinder-review'?'AMRFinder reported review cues':'All supported sources (broader)'])],scopeDefault)+
+ `<p>AMRFinder review uses reported ambiguous findings. It does not recover unreported alignments. Presets control review selection; they do not change AMRFinder reporting thresholds.</p>`+
+ area('followup-yaml-'+m.id,'Reviewed follow-up configuration','deep:\n  enabled: false\n  maximum_candidates: 5\nresource_receipts: []\n','rows="12" spellcheck="false"')+
+ `<label class="check-field"><input type="checkbox" id="followup-reviewed" ${val('followup-reviewed',false)?'checked':''}><span>I reviewed the screening report, selected workflow version, scope and configuration.</span></label><p>Set enabled to true to request follow-up. Five is a per-isolate candidate ceiling; deferred findings remain for review. Resource paths must be absolute and already prepared. Validate the new draft before execution.</p>`;
+ foot=btn('create-followup','Create follow-up draft',true,m.id);
+}
+if(m.kind==='support'){wide=true;title='Get support';desc='Generate → review and edit → download';body=supportPanel();foot=btn('support-download-zip','Download ZIP',false,'','download',!supportValid())+btn('support-download-txt','Download reviewed snapshot',true,'','download',!supportValid());}
+if(m.kind==='workstation'){
+ wide=true;title='Workstation check';desc=m.id;const c=U.workstationCheck?.id===m.id?U.workstationCheck:null;
+ body=workstationDetail(c);const available=!!c?.rows?.length&&!['queued','running'].includes(c.job_status);
+ foot=btn('workstation-detail','Refresh check',false,m.id)+btn('workstation-report','Open check report',false,m.id,'file',!available)+btn('download-workstation','Download check JSON',true,m.id,'download',!available);
+}
+if(m.kind==='log'){wide=true;title='Job log';desc=m.id;const l=U.log?.id===m.id?U.log:null;const j=S.jobs.find(j=>j.id===m.id);body=`${l?statusBadge(l.status):''}${j?jobTelemetry(j)+guidancePanel(j):''}${j&&!j.telemetry?'<p class="inline-info">No resource record has been collected for this job. Recording starts when a new job runs in v0.1.0a27 or later.</p>':''}${l?.error?`<div class="error">${e(l.error)}</div>`:''}<pre class="code-block log-output">${e(l?.text||'Loading process output…')}</pre>`;foot=btn('get-support','Get support',false,m.id)+(j?usageButton(j):'')+btn('job-log','Refresh log',false,m.id)+btn('download-log','Download full log',false,m.id);}
+if(m.kind==='usage'){wide=true;title='Resource use & progress';desc=m.id;const u=U.usage?.id===m.id?U.usage:null;body=u?usageDetail(u):'<p>Loading recorded measurements…</p>';foot=btn('refresh-usage','Refresh',false,m.id)+btn('usage-download-csv','CSV',false,m.id,'download',!u)+btn('usage-download-json','JSON',false,m.id,'download',!u)+btn('usage-download-zip','Download record (ZIP)',true,m.id,'download',!u);}
+if(m.kind==='register-report'){title='Add an existing HTML report';desc='Choose a local file. Its association is user-selected.';body=`<div class="form-grid">${field('report-name','Report label','Existing report')}${field('report-path','HTML report path','','text','placeholder="/home/jimi/results/safety/report.html"')}</div>`;foot=btn('save-report','Register report',true);}
+if(m.kind==='report'){wide=true;const r=U.report?.id===m.id?U.report:null;title=r?.name||'HTML report';desc=r?.path||'Loading report…';body=r?'<div id="report-frame-container"></div>':'<p>Loading the original HTML report…</p>';foot=r?.workstation?btn('workstation-detail','Back to check',true,m.id):btn('open-report-folder','Open report folder',false,m.id,'folder',!r)+btn('download-report','Download original HTML',true,m.id,'download',!r);}
+if(m.kind==='app-window-help'){title='Open Virologix as an app';desc='A dedicated window without the usual browser tabs and address bar.';body=`<p>Virologix opens in app mode by default:</p><pre class="code-block">viralogix</pre><p>Uses an installed Chrome, Edge or Chromium browser. Under WSL it tries Windows Edge or Chrome. If an app window is unavailable, the regular browser opens.</p><p class="settings-note">Windows desktop shortcut: closing the last dedicated window stops this session, with confirmation for active jobs. Separately launched Ubuntu work stays running. Terminal launch: keep the terminal open; closing a browser tab alone does not stop that server. After an app update, the existing window refreshes. Browser policies may affect window appearance.</p><p class="settings-note">Use Workspace tools → Restart as browser to open this workspace in a regular browser without stopping the server or jobs. The Windows shortcut keeps the new browser window in its own session; closing the last session window stops its work.</p>`;foot='';}
+if(m.kind==='credits'){title='Built by Jimi Goldstein';desc='Virologix · Human Link';body=`<div class="author-card"><span class="brand-mark">__BRAND_SVG__</span><div><h3>Your workflow, connected.</h3><p>Independent FluPop workflows in one local workspace.</p></div></div><p class="credits-copy">Created by <strong>Jimi Goldstein</strong> · Human Link<br><a href="https://orcid.org/0000-0002-7829-0090" target="_blank" rel="noopener noreferrer">ORCID 0000-0002-7829-0090 ↗</a></p><pre class="code-block">${e(S.citations['CITATION.txt'])}</pre><div class="button-row">${['ris','bib','cff','txt'].map(x=>btn('citation','Download '+x.toUpperCase(),false,'CITATION.'+x,'download')).join('')}</div><p class="credits-copy">Cite the pipelines, individual tools and databases used in your analysis as well as Virologix.</p><div class="button-row">${btn('citation','FluPop source',false,'CITATION.FluPop.txt')}</div><p class="credits-copy"><a href="https://github.com/crackberryq/Virologix" target="_blank" rel="noopener noreferrer">Virologix on GitHub ↗</a> · MIT license · v${e(S.version)}</p>`;}
+$('#modal-root').innerHTML=`<div class="modal-shade"><section class="modal ${wide?'':'narrow'} ${m.kind==='report'?'report-modal':['new-run','edit-run'].includes(m.kind)?'run-draft-modal':m.kind==='run'?'saved-run-modal':''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><h2 id="modal-title">${e(title)}</h2><p>${e(desc)}</p></div><button class="icon-btn" data-action="close" aria-label="Close dialog">${icon('close')}</button></div><div class="modal-body">${body}<div id="action-error" class="error" role="alert">${e(U.error||'')}</div></div><div class="modal-foot"><small>${['new-run','edit-run'].includes(m.kind)?'Draft not saved yet':m.kind==='run'?'Saved run · changes create a revision':m.kind==='download-database'?'Starts only when you confirm':m.kind==='apply-databases'?'Creates a new draft · original kept':'Local workspace'}</small><div class="button-row">${btn('close','Close')}${foot}</div></div></section></div>`;
+$('.app-shell').setAttribute('inert','');
+if(m.kind==='report'&&U.report?.id===m.id){const f=document.createElement('iframe');f.title=U.report.name;f.setAttribute('sandbox','allow-scripts allow-downloads allow-modals');f.referrerPolicy='no-referrer';f.className='html-report-frame';f.srcdoc=reportDocument(U.report.base64);$('#report-frame-container').append(f);}
+if(m.kind==='support')syncSupport();
+if(m.kind==='import')syncSampleImport();
+if(m.kind==='versions')filterVersions();
+if(['new-run','edit-run'].includes(m.kind)&&U.runConfigTab==='settings')filterRunSettings();
+if(m.kind==='environments')syncEnvironmentControls();
+renderBusy();
+}
+function sampleImportPreview(){
+ const d=U.sampleImport;if(!d)return '<p class="padded">Preview the table to review resolved folders and row errors.</p>';
+ return `<section class="sample-import-review" aria-label="Sample import review"><p><strong>${d.ready_count} ready · ${d.invalid_count} need correction · ${d.rows.length} rows</strong></p><p class="settings-note">Checked ${e(d.checked_at)}. ${e(d.notice)}</p>${d.errors.length?`<ul class="error">${d.errors.map(x=>`<li>${e(x)}</li>`).join('')}</ul>`:''}<label class="check-field"><input type="checkbox" id="sample-import-errors" ${val('sample-import-errors',false)?'checked':''}> Show problem rows only</label><div id="sample-import-rows" tabindex="-1">${sampleImportRows()}</div></section>`;
+}
+function sampleImportRows(){
+ const rows=U.sampleImport.rows.filter(r=>!val('sample-import-errors',false)||r.errors.length),pages=Math.max(1,Math.ceil(rows.length/25));U.importPage=Math.max(0,Math.min(U.importPage||0,pages-1));const start=U.importPage*25;
+ return `<p role="status">${rows.length?`${start+1}–${Math.min(start+25,rows.length)} of ${rows.length} shown`:'No matching rows'}</p>${rows.length?`<div class="table-wrap"><table><thead><tr><th>Line / sample</th><th>Resolved input folder</th><th>Read mode</th><th>Review</th></tr></thead><tbody>${rows.slice(start,start+25).map(r=>`<tr data-import-line="${r.line}"><td>${r.line}<br><strong>${e(r.id.slice(0,150))}</strong></td><td class="path-cell">${e((r.path||r.input_folder).slice(0,1000))}${(r.path||r.input_folder).length>1000?'… [shortened; review table contents above]':''}${r.path&&r.path!==r.input_folder?'<small class="secondary-line">Resolved from '+e(r.input_folder.slice(0,200))+'</small>':''}</td><td>${e(readMode(r.mode))}</td><td>${r.errors.length?`<ul>${r.errors.map(x=>`<li>${e(x)}</li>`).join('')}</ul>`:badge('Ready to register','green')}</td></tr>`).join('')}</tbody></table></div>`:''}<div class="history-pagination">${btn('import-page','Previous rows',false,String(U.importPage-1),'',!U.importPage)}<span>Page ${U.importPage+1} of ${pages}</span>${btn('import-page','Next rows',false,String(U.importPage+1),'',U.importPage+1>=pages)}</div>`;
+}
+function syncSampleImport(){
+ if(U.modal?.kind!=='import')return;
+ const match=!!U.sampleImport&&U.importText===val('sample-table'),button=$('[data-action="import-samples"]'),status=$('#sample-import-status');
+ if(button){button.disabled=!match||!U.sampleImport.can_import||!!U.pending||!!U.queuedRequest;button.textContent=match&&U.sampleImport.can_import?'Import '+U.sampleImport.rows.length+' reviewed sample'+(U.sampleImport.rows.length===1?'':'s'):'Import reviewed samples';}
+ if(status){status.textContent=U.sampleImport&&!match?'Table changed. Preview again before importing.':'';status.className=U.sampleImport&&!match?'error':'';}
+ const preview=$('#sample-import-preview');if(preview)preview.hidden=!!U.sampleImport&&!match;
+}
+function syncEnvironmentControls(){
+ const m=U.modal;if(m?.kind!=='environments')return;
+ const panel=S.environments[m.id],count=$$('[data-environment]:checked').length,changed=val('environment-cache-'+m.id,panel.cache)!==panel.cache;
+ $('#environment-selection-count').textContent=count+' of '+panel.rows.length+' selected';
+ $('#environment-cache-note').textContent=changed?'Save the folder change before installing or checking environments.':'Folder changes affect this installation and future drafts. Use a path without spaces or shell characters.';
+ for(const b of $$('[data-action="check-environments"],[data-action="install-environments"],[data-action="repair-environments"]'))b.disabled=panel.busy||!!U.pending||!count||changed;
+ $('[data-action="save-env-cache"]').disabled=!changed||!!U.pending||S.jobs.some(j=>['queued','running'].includes(j.status));
+}
+function safeURL(url){try{const u=new URL(url);return u.protocol==='https:'&&u.hostname==='github.com'?u.href:'#';}catch{return '#';}}
+function filterVersions(){const q=val('version-search').toLowerCase(),c=val('version-channel','all');for(const row of $$('.version-choice')){row.hidden=(val('release-channel','prerelease')==='stable'&&(row.dataset.versionPrerelease==='true'||row.dataset.versionKind!=='release'))||!row.dataset.versionName.includes(q)||(c!=='all'&&row.dataset.versionKind!==c);const radio=row.querySelector('input');if(row.hidden&&radio.checked){radio.checked=false;U.drafts['version-'+U.modal.id]='';}}const chosen=S.catalogs[U.modal.id].versions.find(x=>x.id===val('version-'+U.modal.id));const button=$('[data-action="install-version"]');if(button){button.disabled=!chosen;button.textContent=!chosen?'Choose a version':chosen.supported?'Download and set up':'Download source only';}}
+
+async function change(event){const t=event.target;if(t.id&&t.type!=='file'){U.drafts[t.id]=t.type==='checkbox'?t.checked:t.value;}
+if(t.id?.startsWith('followup-source-')){const id=U.modal.id;delete U.drafts['followup-scope-'+id];setDraft('followup-reviewed',false);renderModal();}
+if(t.id?.startsWith('followup-scope-')){setDraft('followup-reviewed',false);renderModal();}
+if(['support-job','support-log','support-reviewed'].includes(t.id)){if(t.id!=='support-reviewed'){setDraft('support-reviewed',false);if(!val('support-job',''))setDraft('support-log',false);}renderModal();}
+if(t.id==='setup-pipeline'){U.setupTool=t.value;setDraft('hardware-target',t.value);render();}
+if(t.dataset.sample&&wizardKind()==='new-run')render();
+if(t.dataset.runField){const c=runEditor(),f=c?.fields.find(f=>f.key===t.dataset.runField);if(f){editRunField(c,f,t.type==='checkbox'?t.checked:t.value);if(t.type==='checkbox'||t.tagName==='SELECT')renderEditor();}}
+if(t.id==='run-tool'){draftInputs();U.runBudgetTool=t.value;const budget=draftBudget(t.value);setDraft('run-cores',budget.cores);setDraft('run-memory',budget.memory_mb);const c=runEditor();if(c){if(c.raw){U.runSettingTab[c.tool]='advanced';U.runConfigTab='yaml';render();}else if(U.runConfigTab==='yaml'&&Object.keys(c.changes).length)request('run_config_editor',{...runConfigPayload(),view:'yaml'});else render();}else request('run_config_editor',{tool:t.value,view:U.runConfigTab||'samples'});}
+if(t.dataset.applyRun||t.dataset.applyResource)renderModal();
+if(t.dataset.environment)syncEnvironmentControls();
+if(['results-search','results-pipeline','results-archived'].includes(t.id))filterResults();
+if(['compatibility-search','compatibility-pipeline','compatibility-review','compatibility-archived'].includes(t.id))filterCompatibility();
+if(['history-status','history-pipeline','history-kind','history-order'].includes(t.id))refreshHistory(true);
+if(t.id==='comparison-reference')render();
+if(['comparison-scope','comparison-differences'].includes(t.id))refreshComparison(true);
+if(t.id==='sample-import-errors'){U.importPage=0;$('#sample-import-rows').innerHTML=sampleImportRows();}
+if(t.id==='storage-category')render();
+if(t.id==='run-filter-tool'||t.id==='run-filter-status')render();
+if(t.dataset.select){U.selected=t.checked?[...new Set([...U.selected,t.dataset.select])]:U.selected.filter(x=>x!==t.dataset.select);render();}
+if(t.id?.startsWith('dbcand-')){const tool=U.resourceTool||'flupop',key=t.id.slice(('dbcand-'+tool+'-').length);if(t.value){setDraft(dbPath(tool,key),t.value);delete dbState(tool).resets[key];render();}}
+if(t.id==='existing-env-choice'){setDraft('existing-controller',t.value==='manual'?'':t.value);renderModal();}
+if(t.id==='release-channel'){U.drafts['release-channel']=t.value;U.versionChoiceExplicit=false;U.drafts['version-'+U.modal.id]=defaultPipelineVersion(U.modal.id);renderModal();}
+if(t.name==='version'){U.versionChoiceExplicit=true;U.drafts['version-'+U.modal.id]=t.value;renderModal();}
+if(t.name==='app-version-choice'){U.drafts['app-release']=t.value;renderModal();}
+if(t.id==='yaml-upload'||t.id==='sample-upload'){
+ const f=t.files?.[0];if(!f)return;if(f.size>2*1024*1024){toast('Choose a text file smaller than 2 MB.',true);return;}
+ const c=t.id==='yaml-upload'?defaultEditor():null,text=await f.text();
+ if(c){c.text=text;c.changes={};c.raw=true;const ui=editorUI(c);ui.runConfigTab='yaml';ui.runSettingTab[c.tool]='advanced';setDraft('config-yaml-'+c.tool,text);render();}
+ else {setDraft('sample-table',text);syncSampleImport();}
+}
+}
+function onChange(event){const result=change(event);persistWizard();return result;}
+function onInput(event){input(event);persistWizard();}
+function input(event){const t=event.target;
+if(t.id==='support-text'){setDraft('support-reviewed',false);const box=$('#support-reviewed');if(box)box.checked=false;syncSupport();}
+if(['run-cores','revision-cores','run-memory','revision-memory'].includes(t.id)){const kind=t.id.endsWith('cores')?'cores':'memory',label=$('[data-review-budget="'+kind+'"]');if(label)label.textContent=t.value+(kind==='cores'?' cores':' MB');}
+if(t.dataset.runField){const c=runEditor(),f=c?.fields.find(f=>f.key===t.dataset.runField);if(f)editRunField(c,f,t.type==='checkbox'?t.checked:t.value);}
+if(t.dataset.runYaml){const c=runEditor();c.text=t.value;c.changes={};c.raw=true;updateDefaultStatus();}
+if(t.id&&t.type!=='file')U.drafts[t.id]=t.type==='checkbox'?t.checked:t.value;if(t.id?.startsWith('environment-cache-'))syncEnvironmentControls();if(t.id?.startsWith('dbpath-')){const tool=U.resourceTool||'flupop',key=t.id.slice(('dbpath-'+tool+'-').length);delete dbState(tool).resets[key];setDraft('dbcand-'+tool+'-'+key,'');for(const b of $$('[data-action="save-databases"]'))b.disabled=false;const pos=t.selectionStart,id=t.id;render();const field=$('#'+id);field?.focus();if(pos!==null)field?.setSelectionRange(pos,pos);}if(t.id==='sample-table')syncSampleImport();if(t.id==='comparison-search')refreshComparison(true);if(t.id==='history-search')refreshHistory(true);if(t.id==='compatibility-search')filterCompatibility();if(t.id==='results-search')filterResults();if(t.id===editorSearchId(runEditor()||{}))filterRunSettings();if(t.id==='version-search'||(t.id==='version-channel'||t.id==='release-channel'))filterVersions();if(['registered-sample-search','run-search'].includes(t.id)){const pos=t.selectionStart,id=t.id;render();$('#'+id).focus();$('#'+id).setSelectionRange(pos,pos);}}
+function click(event){if(!event.target.closest('.workspace-tools'))$('.workspace-tools')?.removeAttribute('open');if(event.target.closest('.skip')){event.preventDefault();closeNavigation(false);$('#main').focus();$('#main').scrollIntoView({block:'start'});return;}const nav=event.target.closest('[data-nav]');if(nav){if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate(nav.dataset.nav);return;}const a=event.target.closest('[data-action]');if(!a)return;if(a.tagName==='A'){if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();}const action=a.dataset.action,id=a.dataset.id;draftInputs();U.error='';
+if(action==='toggle-navigation'){U.navOpen=!U.navOpen;syncNavigation();if(U.navOpen)$('#navigation [data-nav]').focus();return;}if(action==='close-navigation'){closeNavigation();return;}
+if(action==='close'){closeModal();return;}if(action.startsWith('go-')){navigate(action.slice(3));return;}
+$('.workspace-tools')?.removeAttribute('open');
+const v=x=>$('#'+x)?.value??val(x);
+if(action==='get-support'){clearSupport();setDraft('support-job',S.jobs.some(j=>j.id===id)?id:'');setDraft('support-log',false);modal('support');}
+else if(action==='restart-as-browser')request('restart_as_browser',{});
+else if(action==='app-window-help')modal('app-window-help');
+else if(action==='generate-support')request('support_preview',{job_id:v('support-job')||null,include_log:!!val('support-log',false)});
+else if(action.startsWith('support-download-')){syncSupport();if(supportValid())request('download_support',{text:val('support-text'),reviewed:true,format:action.slice('support-download-'.length)});}
+else if(action==='resume-wizard')openWizard();
+else if(action==='leave-wizard'){persistWizard();navigate(U.wizard?.kind==='edit-run'?'runs':'samples');}
+else if(action==='discard-wizard')modal('discard-wizard');
+else if(action==='confirm-discard-wizard'){clearWizard();U.modal=null;navigate('runs');}
+else if(action==='resume-conflicting-editor'){closeModal();openWizard();}
+else if(action==='replace-conflicting-editor'&&U.modal?.kind==='editor-conflict'){const {id,variant}=U.modal;clearWizard();closeModal();editSavedRun(id,!!variant);}
+else if(action==='browse-folder')browse(id,v(id));
+else if(action==='folder-open'){setDraft('folder-query','');request('browse_folders',{path:id,show_hidden:!!val('folder-hidden',false)});}
+else if(action==='folder-go'||action==='folder-filter'||action==='folder-page'){request('browse_folders',{path:v('folder-path'),query:v('folder-query'),offset:action==='folder-page'?Number(id):0,show_hidden:!!val('folder-hidden',false)});}
+else if(action==='folder-select'&&U.browser){
+ const target=U.modal.id,b=U.browser;setDraft(target,b.path);
+ if(target==='sample-path'){
+  if(!val('sample-id'))setDraft('sample-id',b.name.replace(/[^A-Za-z0-9_.-]/g,'-').replace(/^[^A-Za-z0-9]+/,'').slice(0,100));
+  setDraft('sample-mode','supplied_records');
+ }
+ if(target==='existing-controller')setDraft('existing-env-choice','manual');
+ if(target==='existing-source')U.localInstall=null;
+ if(target.startsWith('dbpath-')){const tool=U.resourceTool||'flupop';delete dbState(tool).resets[target.slice(('dbpath-'+tool+'-').length)];}
+ closeModal();
+}
+else if(action==='existing-install'){U.localInstall=null;U.discovery=null;setDraft('existing-source','');setDraft('existing-cache','');modal('existing',id);request('discover_environments');}
+else if(action==='find-envs')request('discover_environments');
+else if(action==='scan-local')request('discover_installations',{tool:id,root:v('discovery-root')});
+else if(action==='choose-local'){setDraft('existing-source',id);U.localInstall=null;request('inspect_installation',{tool:U.modal.id,path:id});}
+else if(action==='inspect-local'){U.localInstall=null;request('inspect_installation',{tool:id,path:v('existing-source')});}
+else if(action==='connect-local'){if(!U.localInstall?.supported)return;request('connect_installation',{tool:id,path:v('existing-source'),commit:U.localInstall.commit,runner_mode:v('existing-env-choice')?'existing':'managed',controller:v('existing-env-choice')?v('existing-controller'):'',rule_cache:v('existing-cache')});}
+else if(action==='app-updates'){modal('app-update');if(!S.app_update.catalog)request('refresh_app_releases');}
+else if(action==='refresh-app-releases')request('refresh_app_releases');
+else if(action==='install-app-release'){const r=S.app_update.catalog?.releases.find(x=>String(x.id)===val('app-release'));if(r?.available)request('update_app',{release_id:r.id,version:r.version});}
+else if(action==='new-sample')modal('sample');
+else if(action==='import'){U.sampleImport=null;U.importText=null;U.importPage=0;setDraft('sample-import-errors',false);modal('import');}
+else if(action==='conda')modal('conda');
+else if(action==='new-run'||action==='sample-draft'){
+ if(U.wizard){openWizard();toast('Resumed your unfinished edits. Discard them explicitly to start again.');return;}
+ if(U.view==='install'&&(U.setupTab||'guide')==='guide')setDraft('run-tool',U.setupTool||'flupop');
+ if(action==='sample-draft'){for(const sample of S.samples)setDraft('run-sample-'+sample.id,sample.id===id);}
+ U.wizard={kind:'new-run'};U.runConfigs={};U.runConfigGroup={};U.runSettingTab={};U.runConfigTab='samples';setDraft('run-setting-search','');U.runBudgetTool=val('run-tool','flupop');const budget=draftBudget(U.runBudgetTool);setDraft('run-cores',budget.cores);setDraft('run-memory',budget.memory_mb);
+ openWizard();
+}
+else if(action==='run-config-tab'){
+ const c=runEditor();if(!c)return;
+ if(id==='yaml'||id==='review'||c.raw)requestEditor(id,id==='review');
+ else {editorUI(c).runConfigTab=id;renderEditor();}
+}
+else if(action==='guided-run-tab'){
+ const c=runEditor();if(!c)return;const ui=editorUI(c);ui.runSettingTab[c.tool]=id;
+ if(ui.runConfigTab==='yaml')requestEditor('settings');else renderEditor();
+}
+else if(action==='run-choice'){
+ const c=runEditor(),f=c?.fields.find(f=>f.key===id);if(f){editRunField(c,f,a.dataset.value);renderEditor();}
+}
+else if(action==='run-setting-group'){const c=runEditor();editorUI(c).runConfigGroup[c.tool]=id;setDraft(editorSearchId(c),'');filterRunSettings();}
+else if(action==='reload-run-defaults'){
+ if(runEditor()?.scope==='defaults')request('default_config_editor',{tool:U.tool,view:editorUI().runConfigTab});
+ else if(wizardKind()==='edit-run')request('edit_run_settings',{id:U.revision.id,variant:!!U.revision.variant});
+ else request('run_config_editor',{tool:val('run-tool','flupop'),view:U.runConfigTab});
+}
+else if(action==='check-run-config')requestEditor(editorUI().runConfigTab,true);
+else if(action==='reset-run-field'){
+ const c=runEditor(),f=c.fields.find(f=>f.key===id);delete c.changes[id];
+ if(c.tool==='hybas'&&['run_kraken','kraken_decision_mode'].includes(f?.name))for(const x of c.fields.filter(x=>['run_kraken','kraken_decision_mode'].includes(x.name)))delete c.changes[x.key];
+ renderEditor();
+}
+else if(['cite','about'].includes(action))modal('credits');
+else if(action==='citation')download('Virologix-'+id,S.citations[id]);
+else if(action==='export-workspace')download('Virologix-workspace.json',JSON.stringify({exported:new Date().toISOString(),...S},null,2),'application/json');
+else if(action==='save-sample')request('add_sample',{id:v('sample-id'),path:v('sample-path'),mode:v('sample-mode')});
+else if(action==='sample-template')download('Virologix-samples.csv','sample_id,input_folder,read_mode\nsample01,/home/jimi/viromics/sample01,supplied_records\n','text/csv');
+else if(action==='run-list'){U.runList=id;render();}
+else if(action==='sample-runs'){U.runSampleFilter=id;U.runList='current';setDraft('run-search','');setDraft('run-filter-tool','all');setDraft('run-filter-status','all');navigate('runs');}
+else if(action==='clear-sample-filter'){U.runSampleFilter=null;render();}
+else if(action==='clear-run-filters'){U.runSampleFilter=null;setDraft('run-search','');setDraft('run-filter-tool','all');setDraft('run-filter-status','all');render();}
+else if(action==='compare-configurations'||action==='download-comparison'){U.comparisonPage=0;request(action==='download-comparison'?'download_comparison':'compare_saved_runs',{ids:comparisonIds()});}
+else if(action==='comparison-page'){U.comparisonPage=Number(id);refreshComparison();$('#comparison-table').focus({preventScroll:true});$('#comparison-table').scrollIntoView({block:'start'});}
+else if(action==='comparison-tab'){U.comparisonTab=id;writeRoute(true);render();}
+else if(action==='compare-selected'){U.comparisonTab='review';navigate('comparisons');}
+else if(action==='archive-run'||action==='restore-run')request(action==='archive-run'?'archive_runs':'restore_runs',{ids:[id]});
+else if(action==='archive-selected')request('archive_runs',{ids:U.selected});
+else if(action==='remove-sample')request('remove_sample',{id,sample:S.samples.find(s=>s.id===id)});
+else if(action==='preview-samples'){U.importRequestText=v('sample-table');U.importPage=0;request('preview_samples',{text:U.importRequestText});}
+else if(action==='import-page'){U.importPage=Number(id);$('#sample-import-rows').innerHTML=sampleImportRows();$('#sample-import-rows').focus({preventScroll:true});$('#sample-import-rows').scrollIntoView({block:'nearest'});}
+else if(action==='import-samples')request('import_samples',{text:v('sample-table'),token:U.sampleImport?.token});
+else if(action==='save-conda')request('save_conda',{path:v('conda-path')});
+else if(['bootstrap','smoke','refresh'].includes(action))request(action);
+else if(action==='history-page'){U.historyPage=Number(id);refreshHistory();$('#history-list').focus({preventScroll:true});$('#history-list').scrollIntoView({block:'start'});}
+else if(action==='clear-history'){for(const key of ['search','status','pipeline','kind','order'])setDraft('history-'+key,key==='search'?'':key==='order'?'newest':'all');refreshHistory(true);}
+else if(action==='download-history')downloadHistory();
+else if(action==='recover-jobs')request('recover_jobs');
+else if(['pause-queue','resume-queue','hold-job','release-job','queue-up','queue-down'].includes(action)){
+ const actions={'pause-queue':'pause','resume-queue':'resume','hold-job':'hold','release-job':'release','queue-up':'up','queue-down':'down'};
+ request('queue_control',{action:actions[action],revision:S.queue?.revision,id:id||null});
+}
+else if(action==='versions'){U.drafts['version-search']='';U.drafts['version-channel']='all';U.versionChoiceExplicit=false;U.drafts['version-'+id]=defaultPipelineVersion(id);modal('versions',id);}
+else if(action==='refresh-versions')request('refresh_versions',{tool:id});
+else if(action==='install-version'){const ver=S.catalogs[id].versions.find(x=>x.id===val('version-'+id));if(!ver){toast('Choose a version first.',true);return;}request('install',{tool:id,version_id:ver.id,commit:ver.commit});}
+else if(['check-install','repair-install','use-install','setup-install'].includes(action))request(action.replace('-','_'),{id});
+else if(action==='use-run-databases'||action==='use-databases-for-runs'){
+ for(const key of Object.keys(U.drafts))if(key.startsWith('dbapply-'))delete U.drafts[key];
+ U.databaseRunPlan=null;const run=action==='use-run-databases'?runBy(id):null;
+ if(run)setDraft('dbapply-run-'+id,true);
+ modal('apply-databases',run?run.tool:id);
+ if(run)request('preview_run_databases',{ids:[id]});
+}
+else if(action==='review-run-databases')request('preview_run_databases',{ids:$$('[data-apply-run]:checked').map(x=>x.dataset.applyRun)});
+else if(action==='change-database-runs'){U.databaseRunPlan=null;renderModal();}
+else if(action==='apply-run-databases'){
+ const selections={};for(const x of $$('[data-apply-resource]:checked:not(:disabled)'))(selections[x.dataset.applyRunId]||=[]).push(x.dataset.applyResource);
+ request('apply_run_databases',{ids:U.databaseRunPlan.runs.map(r=>r.id),selections,signature:U.databaseRunPlan.signature});
+}
+else if(['setup-install-environments','setup-check-environments','setup-repair-environments'].includes(action)){setDraft('environment-cache-'+id,S.environments[id]?.cache||'');modal('environments',id,{action:action.split('-')[1]});}
+else if(action==='setup-tab'){U.setupTab=id;writeRoute();render();}
+else if(action==='setup-step'){U.setupStep=id;U.setupTab='guide';render();$('.setup-guide')?.scrollIntoView({block:'start'});}
+else if(action==='detect-hardware')request('detect_hardware');
+else if(action==='apply-power-preset')request('apply_resource_preset',{preset:id,tools:v('hardware-target')==='both'?Object.keys(S.pipelines):[v('hardware-target')],revisions:S.hardware.revisions,hardware_id:S.hardware.id});
+else if(action==='select-environments'||action==='clear-environments'){for(const el of $$('[data-environment]')){el.checked=action==='select-environments';U.drafts[el.id]=el.checked;}syncEnvironmentControls();}
+else if(action==='preview-uninstall'){U.uninstallPlan=null;modal('uninstall',id);request('preview_uninstall',{id});}
+else if(action==='uninstall-version')request('uninstall_version',{id,signature:U.uninstallPlan.signature});
+else if(action==='browse-env-cache'){U.modal.advanced=true;browse('environment-cache-'+id,v('environment-cache-'+id),true);}
+else if(action==='save-env-cache')request('set_environment_cache',{id,path:v('environment-cache-'+id)});
+else if(['check-environments','install-environments','repair-environments'].includes(action))request('manage_environments',{id,action:action.split('-')[0],selected:$$('[data-environment]:checked').map(x=>x.dataset.environment)});
+else if(action==='download-database')modal('download-database',id);
+else if(action==='start-database-download')request('download_database',{tool:U.resourceTool||'flupop',id,parent:v('download-parent'),cores:Number(v('download-cores')),memory_mb:Number(v('download-memory')),lineage:v('download-lineage')||'bacteria_odb10'});
+else if(action==='use-downloaded')request('use_downloaded_database',{id});
+else if(action==='resume-download')request('resume_database_download',{id});
+else if(action==='config-tool'){U.tool=id;render();}
+else if(action==='database-tool'){U.resourceTool=id;render();}
+else if(action==='reload-databases')request('load_databases',{tool:id});
+else if(action==='scan-databases')request('scan_databases',{tool:id,root:v('dbscan-'+id)});
+else if(action==='browse-database'){const t=U.resourceTool||'flupop',key=dbPath(t,id),state=dbState(t),value=v(key),c=state.checks[id]||state.scan?.candidates[id]?.find(x=>x.path===value);browse(key,c?.folder||(value.match(/\.(json|dmnd|fas|fasta|faa)$/i)?value.replace(/[\\/][^\\/]+$/,''):value),true);}
+else if(action==='check-database'){const t=U.resourceTool||'flupop';request('check_database',{tool:t,id,path:v(dbPath(t,id))});}
+else if(action==='reset-database'){const t=U.resourceTool||'flupop';dbState(t).resets[id]=true;setDraft(dbPath(t,id),'');setDraft('dbcand-'+t+'-'+id,'');render();}
+else if(action==='save-databases'){const state=dbState(id),changes={};for(const r of S.databases[id].rows){if(r.managed)continue;const path=v(dbPath(id,r.id));if(state.resets[r.id])changes[r.id]=null;else if(path!==r.path)changes[r.id]=path;}request('save_databases',{tool:id,changes,revision:state.revision});}
+else if(action==='save-config')request('save_default_config',{...runConfigPayload(),revision:runEditor().revision,view:editorUI().runConfigTab});
+else if(action==='download-yaml')requestEditor(editorUI().runConfigTab,false,{download:true});
+else if(action==='create-runs')request('create_runs',{tool:v('run-tool'),ids:S.samples.filter(s=>val('run-sample-'+s.id,false)).map(s=>s.id),cores:Number(v('run-cores')),memory_mb:Number(v('run-memory')),config:runConfigPayload()});
+else if(action==='clear-selection'){U.selected=[];render();}
+else if(action==='run-detail')openRun(id);
+else if(action==='check-run-environments')request('workflow',{ids:[id],action:'check-environments'});
+else if(['dry-run','prepare','run'].includes(action))request('workflow',{ids:[id],action});
+else if(action.startsWith('batch-'))request('workflow',{ids:U.selected,action:action.slice(6)});
+else if(action==='saved-run-tab'){U.runDetailTab=id;writeRoute(true);render();if(id==='methods')request('inspect_methods',{id:U.runId});if(id==='results')request('inspect_results',{id:U.runId});}
+else if(action==='open-methods'){U.runDetailTab='methods';writeRoute(true);render();request('inspect_methods',{id});}
+else if(action==='refresh-methods')request('inspect_methods',{id});
+else if(action.startsWith('methods-download-'))request('download_methods',{id,format:action.slice('methods-download-'.length)});
+else if(action==='create-variant')editSavedRun(id,true);
+else if(action==='edit-run-settings')editSavedRun(id);
+else if(action==='save-run-revision')request('revise_run',{id:U.revision.id,variant:!!U.revision.variant,signature:U.revision.signature,config:runConfigPayload(),cores:Number(v('revision-cores')),memory_mb:Number(v('revision-memory'))});
+else if(action==='handoff')request('handoff',{id});
+else if(action==='followup'){delete U.drafts['followup-reviewed'];delete U.drafts['followup-source-'+id];delete U.drafts['followup-scope-'+id];modal('followup',id);}
+else if(action==='create-followup')request('create_followup',{id,text:v('followup-yaml-'+id),reviewed:$('#followup-reviewed').checked,source_id:v('followup-source-'+id),scope:v('followup-scope-'+id)||null});
+else if(action==='download-frozen'&&U.detail?.id===id)download(id+'.yaml',U.detail.config,'text/yaml');
+else if(action==='start-workstation')request('check_workstation',{installation:val('workstation-runner','')||null});
+else if(action==='workstation-detail'){U.workstationCheck=null;modal('workstation',id);request('inspect_workstation',{id});}
+else if(action==='workstation-observe'){const c=U.workstationCheck;request('observe_workstation',{id:c.id,key:id,confirmed:!c.observations?.[id]?.confirmed});}
+else if(action==='workstation-report'){U.report=null;modal('report',id);request('workstation_report',{id});}
+else if(action==='download-workstation')request('download_workstation',{id});
+else if(action==='recovery-setup'){U.setupTab='software';navigate('install');}
+else if(action==='recovery-databases'){const j=S.jobs.find(x=>x.id===id),r=runBy(j?.payload.run_id);U.resourceTool=r?.tool||j?.payload.tool||'flupop';navigate('resources');}
+else if(action==='job-log'){modal('log',id);request('job_log',{id});}
+else if(action==='job-usage'){modal('usage',id);request('job_metrics',{id});}
+else if(action==='refresh-usage')request('job_metrics',{id});
+else if(action.startsWith('usage-download-'))request('download_metrics',{id,format:action.slice('usage-download-'.length)});
+else if(action==='refresh-compatibility')request('inspect_compatibility');
+else if(action==='download-compatibility')request('download_compatibility');
+else if(action==='refresh-storage')request('inspect_storage');
+else if(action==='scan-storage')request('scan_storage',{revision:U.storage?.revision,include_external:!!val('storage-external',false)});
+else if(action==='download-storage')request('download_storage');
+else if(action==='storage-review')navigate(id);
+else if(action==='refresh-results')request('inspect_results',{id});
+else if(action==='result-config')request('download_result',{id,format:'config'});
+else if(action==='result-manifest')request('download_result',{id,format:'manifest'});
+else if(action==='open-result-report'){U.report=null;modal('report',id);request('open_result_report',{id:U.runId,report_id:id});}
+else if(action==='result-report')request('download_result',{id:U.runId,format:'report',report_id:id});
+else if(action==='download-log')request('download_log',{id});
+else if(action==='cancel-job')request('cancel_job',{id});
+else if(action==='view-results')openRun(id,'results');
+else if(action==='all-reports'){U.reportRun=null;render();}
+else if(action==='register-report')modal('register-report');
+else if(action==='save-report')request('register_report',{path:v('report-path'),name:v('report-name')});
+else if(action==='open-report'){U.report=null;modal('report',id);request('open_report',{id});}
+else if(action==='open-report-folder'&&U.report)request('open_report_folder',{id:U.report.id,run_id:U.report.run_id});
+else if(action==='open-original')request('open_original',{id});
+else if(action==='download-report'&&U.report){const r=U.report;download(r.path.split('/').pop(),Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0)),'text/html');}
+}
+function keydown(event){if(event.key==='Escape'&&U.navOpen){event.preventDefault();closeNavigation();return;}if(event.key==='Escape'&&$('.workspace-tools[open]')){$('.workspace-tools').removeAttribute('open');$('.workspace-tools summary').focus();return;}if(event.key==='Tab'&&U.navOpen){const nodes=$$('.sidebar a,.sidebar button').filter(n=>n.getClientRects().length&&!n.disabled),first=nodes[0],last=nodes.at(-1),focused=parentElement.activeElement;if(event.shiftKey&&focused===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&focused===last){event.preventDefault();first.focus();}}if(event.key==='Escape'&&U.modal){event.preventDefault();closeModal();}if(event.key==='Tab'&&U.modal){const nodes=$$('.modal button:not(:disabled),.modal input:not(:disabled),.modal select,.modal textarea,.modal a[href],.modal summary').filter(n=>!n.disabled&&!n.hidden&&n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden');const first=nodes[0],last=nodes[nodes.length-1],focused=parentElement.activeElement;if(event.shiftKey&&focused===first){last?.focus();event.preventDefault();}else if(!event.shiftKey&&focused===last){first?.focus();event.preventDefault();}}}
+// This watcher survives component disposal and Streamlit reconnects during an update.
 function watchAppRestart(){
  const u=S.app_update;if(!u)return;
- let watcher=window.__virologixRestart;
- const fail=watcher&&(S.tasks.find(j=>j.id===watcher.job)?.status==='failed'||S.tasks.find(j=>j.id===watcher.job)?.status==='cancelled'||(u.last_update?.job===watcher.job&&u.last_update?.restart_status==='failed'));
- if(fail){clearTimeout(watcher.timer);watcher.cancelled=true;window.__virologixRestart=null;return;}
- const job=u.active_job&&S.tasks.find(j=>j.id===u.active_job);
- const target=u.target_version||(u.restart_required&&u.last_update?.status==='installed'?u.last_update.version:null);
+ let watcher=window.__viralogixRestart;
+ const fail=watcher&&(S.jobs.find(j=>j.id===watcher.job)?.status==='failed'||S.jobs.find(j=>j.id===watcher.job)?.status==='cancelled'||(u.last_update?.job===watcher.job&&u.last_update?.restart_status==='failed'));
+ if(fail){clearTimeout(watcher.timer);watcher.cancelled=true;window.__viralogixRestart=null;return;}
+ const job=u.active_job&&S.jobs.find(j=>j.id===u.active_job);
+ const target=job?.payload?.release?.version||(u.restart_required&&u.last_update?.status==='installed'?u.last_update.version:null);
  if(watcher||!u.automatic_restart||!u.launcher||!target)return;
  watcher={id:u.launcher.id,version:target,job:job?.id||u.last_update.job,deadline:Date.now()+1200000,cancelled:false};
- window.__virologixRestart=watcher;
+ window.__viralogixRestart=watcher;
  const check=async()=>{
   if(watcher.cancelled)return;
-  if(Date.now()>watcher.deadline){window.__virologixRestart=null;const msg=document.createElement('div');msg.textContent='Automatic restart did not finish. Check the terminal, start viralogix if needed, then refresh this page.';msg.setAttribute('role','alert');msg.style.cssText='position:fixed;bottom:20px;left:20px;right:20px;padding:18px;background:#fff3d6;color:#543c13;z-index:99999;border:1px solid #d9bd76;border-radius:8px';document.body.append(msg);return;}
+  if(Date.now()>watcher.deadline){window.__viralogixRestart=null;const msg=document.createElement('div');msg.textContent='Automatic restart did not finish. Check the terminal, start viralogix if needed, then refresh this page.';msg.setAttribute('role','alert');msg.style.cssText='position:fixed;bottom:20px;left:20px;right:20px;padding:18px;background:#fff3d6;color:#543c13;z-index:99999;border:1px solid #d9bd76;border-radius:8px';document.body.append(msg);return;}
   const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),2500);
   try{
    const runtime=await fetch('/app/static/runtime.json',{cache:'no-store',signal:abort.signal});
    if(runtime.ok){const fresh=await runtime.json();if(fresh.id&&fresh.id!==watcher.id&&fresh.version===watcher.version){
     const health=await fetch('/_stcore/health',{cache:'no-store',signal:abort.signal});
-    if(health.ok&&(await health.text()).trim()==='ok'&&!watcher.cancelled){window.__virologixRestart=null;window.location.reload();return;}
+    if(health.ok&&(await health.text()).trim()==='ok'&&!watcher.cancelled){window.__viralogixRestart=null;window.location.reload();return;}
    }}
   }catch(_){/* The server is expected to be briefly unavailable during restart. */}
   finally{clearTimeout(timer);}
@@ -228,9 +1006,76 @@ function watchAppRestart(){
  watcher.timer=setTimeout(check,750);
 }
 watchAppRestart();
-  render();
-  browserDialog();
-  const completed=S.cloud_runs.find(run=>run.job_id===U.waitingJob && run.status==='succeeded');
-  if(completed && !U.pending){U.waitingJob=null;pollTimer=setTimeout(()=>send('cloud-open',{run_id:completed.id}),0);}
-  else if(S.tasks.some(t=>['queued','running'].includes(t.status)) && !U.pending){pollTimer=setTimeout(()=>send('refresh'),2000);}
+if(!U.routeInitialized){U.routeInitialized=true;readRoute();}
+const response=data.response;
+const newResponse=response&&response.id!==U.handled;
+const backgroundResponse=U.background;
+// Preserve drafts before rendering a new server snapshot.
+draftInputs();
+if(newResponse){if(!response.ok&&U.requestOrigin?.kind==='import_samples'){U.sampleImport=null;U.importText=null;}U.handled=response.id;U.pending=null;U.error=response.ok?'':response.message;if(response.config){const c=response.config;U.drafts['yaml-'+c.tool]=c.text;U.fields[c.tool]=c.fields;const el=$('#yaml-'+c.tool);if(el)el.value=c.text;}if(response.browser){U.browser=response.browser;setDraft('folder-path',response.browser.path);}if(response.database_scan){const scan=response.database_scan,t=scan.tool,state=dbState(t);state.scan=scan;for(const r of S.databases[t].rows){const key=dbPath(t,r.id),preferred=scan.candidates[r.id]?.find(c=>c.preferred);if(preferred&&!state.resets[r.id]&&val(key,r.path)===r.path){setDraft(key,preferred.path);setDraft('dbcand-'+t+'-'+r.id,preferred.path);}}}
+if(response.ok&&response.refreshed_catalog&&U.modal?.kind==='versions'&&U.modal.id===response.refreshed_catalog&&!U.versionChoiceExplicit){U.drafts['version-'+U.modal.id]=defaultPipelineVersion(U.modal.id);}
+if(response.removed_sample){
+ const key='run-sample-'+response.removed_sample;delete U.drafts[key];
+ // render() captures the outgoing form once more before replacing the dialog.
+ const checkbox=$$('[data-sample]').find(el=>el.dataset.sample===response.removed_sample);if(checkbox)checkbox.checked=false;
+}
+if(response.edit_run){
+ U.revision=response.edit_run;U.wizard={kind:'edit-run',id:U.revision.id,variant:!!U.revision.variant};U.view='draft';U.modal=null;writeRoute();U.runConfigGroup={};U.runSettingTab={};
+ U.runSettingTab[U.revision.tool]=guidedTabs[U.revision.tool].some(t=>t[0]===U.runDetailTab)?U.runDetailTab:guidedTabs[U.revision.tool][0][0];
+ setDraft('revision-cores',U.revision.cores);setDraft('revision-memory',U.revision.memory_mb);setDraft('run-setting-search','');
+}
+if(response.run_config){
+ const c=response.run_config;U.runConfigs ||= {};if(wizardKind()==='edit-run')U.revisionConfig={...c,changes:{},raw:false};else U.runConfigs[c.tool]={...c,changes:{},raw:false};
+ U.runConfigTab=response.run_config_view;if(U.runConfigTab==='yaml'){U.runSettingTab ||= {};U.runSettingTab[c.tool]='advanced';}setDraft('run-yaml-'+c.tool,c.text);
+}
+if(response.default_config){
+ const c=response.default_config,old=defaultEditor(c.tool);U.defaultEditors ||= {};
+ U.defaultEditors[c.tool]={...c,scope:'defaults',changes:{},raw:false,savedText:response.default_config_loaded||response.default_config_saved?c.text:old?.savedText??c.text};
+ const ui=editorUI(U.defaultEditors[c.tool]);ui.runConfigTab=response.default_config_view;
+ if(ui.runConfigTab==='yaml')ui.runSettingTab[c.tool]='advanced';
+ setDraft('config-yaml-'+c.tool,c.text);
+}
+if(response.workstation_check)U.workstationCheck=response.workstation_check;
+if(response.download&&U.modal?.kind==='workstation')U.workstationCheck=S.workstation_checks?.find(c=>c.id===U.modal.id)||U.workstationCheck;
+if(response.uninstall_plan)U.uninstallPlan=response.uninstall_plan;
+if(response.open_environments){const id=response.open_environments;setDraft('environment-cache-'+id,S.environments[id]?.cache||'');U.modal={kind:'environments',id,action:U.modal?.action||'install',advanced:true};}
+if(response.database_run_plan)U.databaseRunPlan=response.database_run_plan;
+if(response.database_check){const c=response.database_check,t=c.tool;dbState(t).checks[c.id]=c;setDraft(dbPath(t,c.id),c.path);delete dbState(t).resets[c.id];}
+if(response.database_saved){clearDatabases(response.database_saved);}
+if(response.discovery)U.discovery=response.discovery;if(response.local_envs)U.localEnvs=response.local_envs;if(response.local_install){U.localInstall=response.local_install;setDraft('existing-source',response.local_install.path);setDraft('existing-cache',response.local_install.rule_cache);}if(response.detail)U.detail=response.detail;if(response.sample_import){U.toast=null;U.sampleImport=response.sample_import;U.importText=U.importRequestText;}if(response.comparison)U.comparison=response.comparison;if(response.compatibility)U.compatibility=response.compatibility;if(response.storage)U.storage=response.storage;if(response.results)U.results=response.results;if(response.methods)U.methods=response.methods;if(response.log)U.log=response.log;if(response.usage)U.usage=response.usage;if(response.support&&U.modal?.kind==='support'){U.support=response.support;setDraft('support-text',response.support.text);setDraft('support-reviewed',false);}if(response.report)U.report=response.report;if(response.download)download(response.download.name,response.download.base64?Uint8Array.from(atob(response.download.base64),c=>c.charCodeAt(0)):response.download.text,response.download.type);if(response.ok&&['create_runs','revise_run'].includes(U.requestOrigin?.kind))clearWizard();if(response.ok&&!response.keep_modal&&!backgroundResponse)U.modal=null;if(response.navigate){if(response.navigate==='jobs'&&U.requestOrigin?.kind==='workflow'&&U.requestOrigin.view==='run'&&U.view==='run'&&U.requestOrigin.runId===U.runId){U.runDetailTab='activity';writeRoute(true);}else{U.view=response.navigate;writeRoute();}}if(response.open_run){U.runDetailTab='overview';U.revision=null;U.revisionConfig=null;U.modal=null;U.view='run';U.runId=response.open_run;writeRoute(true);}}
+const reportFolderMessage=event=>{const f=$('.html-report-frame');if(f&&event.source===f.contentWindow&&event.data?.kind==='viralogix-open-report-folder'&&U.report&&!U.report.workstation)request('open_report_folder',{id:U.report.id,run_id:U.report.run_id});};
+window.addEventListener('message',reportFolderMessage);
+window.addEventListener('resize',syncNavigation);window.addEventListener('beforeunload',beforeUnload);window.addEventListener('popstate',routeChanged);window.addEventListener('hashchange',routeChanged);
+root.addEventListener('click',click);root.addEventListener('input',onInput);root.addEventListener('change',onChange);root.addEventListener('keydown',keydown);
+render();
+if(newResponse&&response.message)toast(response.message,!response.ok);else renderToast();
+if(newResponse&&U.queuedRequest){const queued=U.queuedRequest;U.queuedRequest=null;request(queued.kind,queued.payload);}
+const dispose=()=>{window.removeEventListener('message',reportFolderMessage);window.removeEventListener('resize',syncNavigation);window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('popstate',routeChanged);window.removeEventListener('hashchange',routeChanged);clearTimeout(pollTimer);clearTimeout(toastTimer);root.removeEventListener('click',click);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('keydown',keydown);};
+root._dispose=dispose;
+return dispose;
+}
+// srcdoc inherits the host's base URL. Fragment navigation must stay inside
+// the saved report, without granting it access to the workspace origin.
+function reportDocument(base64){
+ const doc=new DOMParser().parseFromString(new TextDecoder().decode(Uint8Array.from(atob(base64),c=>c.charCodeAt(0))),'text/html');
+ for(const link of doc.querySelectorAll('a[href]')){if(['metadata/files.html','./metadata/files.html'].includes(link.getAttribute('href'))&&link.textContent.trim()==='Run files'){link.textContent='Open report folder';link.setAttribute('href','#');link.setAttribute('data-viralogix-folder','true');}}
+ const script=doc.createElement('script');
+ script.textContent='('+function(){
+  document.addEventListener('click',function(event){
+   const link=event.target.closest?.('a[href]'),href=link?.getAttribute('href');
+   if(link?.hasAttribute('data-viralogix-folder')){event.preventDefault();event.stopImmediatePropagation();parent.postMessage({kind:'viralogix-open-report-folder'},'*');return;}
+   if(!href?.startsWith('#'))return;
+   event.preventDefault();
+   let id;try{id=decodeURIComponent(href.slice(1));}catch(_){id=href.slice(1);}
+   const target=document.getElementById(id)||document.getElementsByName(id)[0];
+   if(!target)return;
+   // Native report handlers may reveal panels during the same click.
+   setTimeout(function(){
+    for(let node=target;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;
+    target.scrollIntoView({block:'start'});
+   },0);
+  },true);
+ }.toString()+')();';
+ doc.head.prepend(script);
+ return '<!doctype html>'+doc.documentElement.outerHTML;
 }

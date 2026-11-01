@@ -1,0 +1,1 @@
+FluPop source and methods: https://github.com/crackberryq/Viromics_FluPop

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "Please cite Virologix and the pipelines, tools and databases used."
+type: software
+license: MIT
+title: Virologix
+version: 0.1.0a11
+authors:
+  - family-names: Goldstein
+    given-names: Jimi
+    affiliation: Human Link
+    orcid: https://orcid.org/0000-0002-7829-0090
+
