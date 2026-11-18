@@ -58,3 +58,7 @@ python -m pytest -q
 Integration tests use an independently installed FluPop source/environment via `FLUPOP_TEST_SOURCE` and `FLUPOP_TEST_PYTHON`; CI provisions them separately. Browser acceptance covers the actual external Snakemake demo, report download and saved-result access. Installer unit tests cover environment isolation and failed-update preservation. A separate CI job creates a fresh Conda installation of FluPop and runs its synthetic workflow through the manager adapter. Windows CI tests the desktop setup/launcher; the workflow itself executes in Ubuntu/WSL.
 
 Blue V branding and the shared workspace design remain consistent with Bactologix under Human Link GenoMix. Current interface provenance: Bactologix commit `dd1e97a364fc7a3c87404be3e49502fab029aad8` (MIT, Jimi Goldstein).
+
+## Licence
+
+The original Virologix software in this distribution is available for noncommercial research under the [Noncommercial Research Software Licence v1.0](LICENSE). Cite Jimi Goldstein and the version used when reporting results. Commercial use requires prior written permission from Jimi Goldstein.
