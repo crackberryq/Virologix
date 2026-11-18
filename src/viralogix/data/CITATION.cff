@@ -1,6 +1,7 @@
 cff-version: 1.2.0
-message: "Cite Virologix and the pipelines, tools and databases used. See the accompanying LICENSE for the Noncommercial Research Software Licence v1.0."
+message: "Please cite Virologix and the pipelines, tools and databases used."
 type: software
+license: MIT
 title: Virologix
 version: 0.1.0a11
 authors:
